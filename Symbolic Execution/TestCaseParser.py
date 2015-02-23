@@ -1,4 +1,5 @@
 from random import randint
+from reportlab.lib.validators import isString
 
 class TestCaseParser:
 
@@ -6,78 +7,83 @@ class TestCaseParser:
     IndexByName = {}        # value = Order
     TestCasePath = './TestCases/'
     
-    def __init__(self,proc_name, DetailsFile):
-        Details = open(DetailsFile,'r');
-        Args = int(Details.readline())
+    def __init__(self,proc_name):
         self.CaseNo = 0
         self.proc_name = proc_name
         
-        for i in range(Args):
-            Line = Details.readline()
-            In = Line.split()
-            self.IndexByOrder[i] = [In[0], In[1]]
-            self.IndexByName[In[1]] = i
-            
-        #further stuff will be added later
-        Details.close
         
         
-    def get_first_test_case(self):
+        
+    def getCase(self, Model, Variables, Types, Alaises, Tables):
         self.CaseNo = self.CaseNo+1
         T = self.TestCasePath + 'Case' + self.CaseNo.__str__() + '.sql'
-        case = 'Select ' + self.proc_name + '('
-        
-        for i in range(self.IndexByOrder.__len__()):
-            In = self.IndexByOrder[i]
-            
-            if In[0] == 'Int':
-                value = randint(0,10)
-                case = case + value.__str__() + ','
-            
-            elif In[0] == 'something else':
-                print('something else')
-            else:
-                print('Error: Undefined Data Type')
-                
-        case = case[:-1] + ');'
         
         Test = open(T,'w')
-        Test.write(case)
+        
+        # Truncate Tables first
+        for k,v in Tables.items():
+            line = 'Truncate Table '+ k + ';\n'
+            Test.write(line);
+        
+        # Setup data for tables
+        for k,v in Tables.items():
+            for eachrow in v.Rows:
+                line = 'insert into '+ k + '('
+                
+                for Index in range(v.ColumsByIndex.__len__()):
+                    line = line + v.getColumnNameFromIndex(Index) + ', '
+                line = line[:-2] + ') values ('
+                
+                for i in range(v.NumberOfColumns):
+                    Value = self.getValue(Model, v.getColumnTypeFromIndex , (eachrow[i])[0])
+                    if isString(Value):
+                        line = line + Value + ', '
+                    else:
+                        line = line + 'NULL' + ', '
+                
+                line = line[:-2] + ');\n'                        
+                Test.write(line);
+        
+        # Setup procedure Executeion
+        line = 'Select ' + self.proc_name + '('
+        
+        for i in range (Alaises.__len__()):
+            Name = Alaises['$'+(i+1).__str__()]
+            Variable = Variables[Name]
+            Type = Types[Name]
+
+            Value = self.getValue(Model, Type, Variable)
+            
+            if isString(Value):
+                line = line + Value + ', '
+            else:
+                line = line + 'NULL' + ', '
+
+        line = line[:-2] + ');\n'                        
+        Test.write(line);
+        
         Test.flush()
         Test.close
         return T
     
     
-    def ParseModel(self, M, Input):
-        self.CaseNo = self.CaseNo+1
-        T = self.TestCasePath + 'Case' + self.CaseNo.__str__() + '.sql'
-        case = 'Select ' + self.proc_name + '('
+    
+    def getValue(self, Model, Type, Variable):
         
-        for i in range(self.IndexByOrder.__len__()):
-            In = self.IndexByOrder[i]
+        if (Type == 'Int'):
+            try:
+                value = Model.evaluate(Variable)
+                int(value.__str__())
+                return value.__str__()
+            except:
+                value = randint(0,10)
+                return value.__str__()
             
-            if In[0] == 'Int':
-                var = Input[In[1]]
-                var = var[-1]
-                value = M.evaluate(var)
-                
-                try:
-                    int(value.__str__())
-                    case = case + value.__str__() + ','
-                except:
-                    value = randint(0,10)
-                    case = case + value.__str__() + ','
-                    
-            
-            elif In[0] == 'something else':
-                print('something else')
-            else:
-                print('Error: Undefined Data Type')
-                
-        case = case[:-1] + ');'
-        print(case)
-        Test = open(T,'w')
-        Test.write(case)
-        Test.close
+        elif (Type == 'String'):
+            pass
         
-        return T
+        elif (Type == 'Date'):
+            pass
+
+            
+        

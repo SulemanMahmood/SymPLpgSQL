@@ -1,1 +1,1 @@
-Select Max3(0,-1,-1);
+Select Max3(4, 8, 2);

@@ -1,1 +1,2 @@
-Select Max3(5,2,6);
+Truncate Table numbers;
+Select ReadNum2(1);

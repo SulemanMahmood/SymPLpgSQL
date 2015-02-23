@@ -1,3 +1,10 @@
-a = []
 
-print (a[-1])
+def Abc():
+    pass
+
+
+Row = 'acv '+ Abc() +'sdskjd'
+
+print(Row)
+
+

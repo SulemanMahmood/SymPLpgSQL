@@ -1,34 +1,30 @@
-from TestCaseParser import TestCaseParser
 from Z3Solver import Z3Solver
 import psycopg2
 
 class SymbolicExecutor:
     
-    def __init__(self, proc_name, ProcDetailFile, TraceFile):
-        self.CaseParser = TestCaseParser(proc_name,ProcDetailFile)
+    def __init__(self, proc_name, TraceFile):
         self.TraceFile = TraceFile
         self.proc_name = proc_name
         
     
     def run(self):
-        T = self.CaseParser.get_first_test_case()
-        Z3 = Z3Solver(self.CaseParser, self.TraceFile)
+        Z3 = Z3Solver(self.proc_name)
+        T = Z3.get_first_test_case()
         
         while True:
             self.CleanUp()
             self.ExecuteTest(T)
-            T = Z3.Check()
+            T = Z3.Check(self.TraceFile)
             if not isinstance(T, int):
                 pass
             else:
                 break
         
-    def CleanUp(self):
+    def CleanUp(self):      #Cleaning Up the Trace File
         T = open(self.TraceFile,'w')
         T.close
         
-        # Nothing to clean in DB right now
-        # or Case parser od case can be used to selectvely clean the DB
             
     
     def ExecuteTest(self, T):

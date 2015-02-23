@@ -1,39 +1,54 @@
 from z3 import *
+from TestCaseParser import TestCaseParser
+from Table import Table
 
 class Z3Solver:
     
-    def __init__(self, CaseParser, TraceFile):
-        self.S = Solver()
+    def __init__(self,proc_name):
+        self.S = Solver()       # Actaul Solver Object
         self.Z3depth = 0        # also represents trace file lines to skip
-        self.CaseParser = CaseParser
-        self.TraceFile = TraceFile
+        self.proc_name = proc_name
         self.DepthChoiceOptions = {}
+        self.CaseParser = TestCaseParser(self.proc_name)
         
-        #initializing the inputs for z3
-        self.Inputs = {}
+        #initializing the variables for z3
+        self.Alaises = {}           # key = alais       value = Name
+        self.Variables = {}         # key = Name        value = Object
+        self.Types = {}             # key = Name        value = Type
+        self.Tables = {}            # key = Tablename   value = Table Object 
+        self.InternalTables = {}    # key =             value = 
         
-        for i in range(self.CaseParser.IndexByOrder.__len__()):
-            var = self.CaseParser.IndexByOrder[i]
-            Type = var[0];
-            Name = var[1];
+        
+        DetailsFile = './Resources/'+proc_name+'Details.txt'
+        Details = open(DetailsFile,'r')
+        
+        NumberOfInputs = int(Details.readline())
+        for i in range(NumberOfInputs):
+            Line = Details.readline()
+            In = Line.split()
+            self.SetupVariable(In)
+                     
+        NumberOfLocals = int(Details.readline())
+        for i in range(NumberOfLocals):
+            Line = Details.readline()
+            Local = Line.split()
+            self.SetupVariable(Local)    
+        
+        NumberOfTables = int(Details.readline())
+        for i in range(NumberOfTables):
+            Tablename = Details.readline()
+            if not (self.Tables.__contains__(Tablename)):
+                self.Tables[Tablename] = Table(Tablename, True)
             
-            if not (self.Inputs.__contains__(Name)):
-                self.Inputs[Name] = []
-            
-            if Type == 'Int':
-                self.Inputs[Name].append(Int(Name))
-                
-            elif Type == 'Sonedjsdf':
-                pass
-            else:
-                pass
-                
+        Details.close
         
-    def Check(self):
-        Trace = open(self.TraceFile, 'r')
+              
+        
+    def Check(self, TraceFile):
+        Trace = open(TraceFile, 'r')
         
         #set back variables with name
-        for k, v in self.Inputs.items():
+        for k, v in self.Variables.items():
             code = k+" = v[-1]"
             print(code)
             exec(code)
@@ -86,8 +101,35 @@ class Z3Solver:
                 print(check)
                 if check.r == 1:
                     M = self.S.model()
-                    T = self.CaseParser.ParseModel(M,self.Inputs)
+                    T = self.CaseParser.getCase(M, self.Variables, self.Types, self.Alaises, self.Tables)
                     return T
             else:
                 return 0        #search completed
+        
+        
+        
+    def SetupVariable(self, In):
+        Type = In[0]
+        Name = In[1]
+        
+        if not (self.Variables.__contains__(Name)):
+            self.Variables[Name] = []
+            self.Types[Name] = Type
+                
+        if (Type == 'Int'):
+            self.Variables[Name].append(Int(Name))
             
+        elif (Type == 'String'):
+            pass
+        
+        elif (Type == 'Date'):
+            pass
+        
+        if (len(In) > 2):
+            Alais = In[2]
+            self.Alaises[Alais] = Name
+        
+    def get_first_test_case(self):
+        self.S.check()
+        M = self.S.model()
+        return self.CaseParser.getCase(M, self.Variables, self.Types, self.Alaises, self.Tables)

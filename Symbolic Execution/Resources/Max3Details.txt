@@ -1,4 +1,6 @@
 3
-Int x
-Int y
-Int z
+Int	x	$1
+Int y	$2
+Int z	$3
+0
+0

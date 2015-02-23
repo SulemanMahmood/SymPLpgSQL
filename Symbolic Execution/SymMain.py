@@ -1,9 +1,8 @@
 from SymbolicExecutor import SymbolicExecutor
 
-proc_name = 'Max3'
+proc_name = 'ReadNum2'
 TraceFile = '/home/suleman/TraceLog.txt'
-procDetailFile = './Resources/'+proc_name+'Details.txt'
 
-Executor = SymbolicExecutor(proc_name, procDetailFile, TraceFile)
+Executor = SymbolicExecutor(proc_name, TraceFile)
 Executor.run()
 
