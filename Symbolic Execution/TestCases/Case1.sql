@@ -1,2 +1,3 @@
 Truncate Table numbers;
-Select ReadNum2(1);
+commit;
+Select ReadNum2(9);

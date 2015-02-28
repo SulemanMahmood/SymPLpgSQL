@@ -15,6 +15,7 @@ class TestCaseParser:
         
         
     def getCase(self, Model, Variables, Types, Alaises, Tables):
+        print(Model)
         self.CaseNo = self.CaseNo+1
         T = self.TestCasePath + 'Case' + self.CaseNo.__str__() + '.sql'
         
@@ -35,7 +36,7 @@ class TestCaseParser:
                 line = line[:-2] + ') values ('
                 
                 for i in range(v.NumberOfColumns):
-                    Value = self.getValue(Model, v.getColumnTypeFromIndex , (eachrow[i])[0])
+                    Value = self.getValue(Model, v.getColumnTypeFromIndex(Index) , eachrow[i])
                     if isString(Value):
                         line = line + Value + ', '
                     else:
@@ -44,12 +45,15 @@ class TestCaseParser:
                 line = line[:-2] + ');\n'                        
                 Test.write(line);
         
+        line = 'commit;\n'
+        Test.write(line)
+        
         # Setup procedure Executeion
         line = 'Select ' + self.proc_name + '('
         
         for i in range (Alaises.__len__()):
             Name = Alaises['$'+(i+1).__str__()]
-            Variable = Variables[Name]
+            Variable = (Variables[Name])[0]
             Type = Types[Name]
 
             Value = self.getValue(Model, Type, Variable)
@@ -86,4 +90,3 @@ class TestCaseParser:
             pass
 
             
-        
