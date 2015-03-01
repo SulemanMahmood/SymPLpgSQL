@@ -8,10 +8,7 @@ class TestCaseParser:
     def __init__(self,proc_name):
         self.CaseNo = 0
         self.proc_name = proc_name
-        
-        
-        
-        
+                
     def getCase(self, Model, State):
         self.CaseNo = self.CaseNo+1
         T = self.TestCasePath + 'Case' + self.CaseNo.__str__() + '.sql'
@@ -70,8 +67,6 @@ class TestCaseParser:
         Test.close
         return T
     
-    
-    
     def getValue(self, Model, Type, Variable):
         if (Type == 'Int'):
             try:
@@ -87,5 +82,4 @@ class TestCaseParser:
         
         elif (Type == 'Date'):
             pass
-
-            
+         

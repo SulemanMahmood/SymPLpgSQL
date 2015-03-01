@@ -266,9 +266,9 @@ class StateClass:
                 #Two Rows Found
                 CompleteCondition = ''
                 for j in range(self.Current_Tables[TableName].getNumberOfRows()):
-                    CompleteCondition = CompleteCondition + self.SubstituteTableRow(Condition, TableName, j) + ', '
+                    ConditionPart1 = CompleteCondition + self.SubstituteTableRow(Condition, TableName, j) + ', '
                     for k in range(j+1, self.Current_Tables[TableName].getNumberOfRows()):
-                        CompleteCondition = CompleteCondition + self.SubstituteTableRow(Condition, TableName, k) + ', '                    
+                        CompleteCondition = ConditionPart1 + self.SubstituteTableRow(Condition, TableName, k) + ', '                    
                         for l in range(self.Current_Tables[TableName].getNumberOfRows()):
                             if (l == j or l == k):
                                 pass

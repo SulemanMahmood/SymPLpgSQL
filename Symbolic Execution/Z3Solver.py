@@ -9,9 +9,7 @@ class Z3Solver:
         self.DepthChoiceOptions = {}
         self.State = State
         self.CaseParser = CaseParser
-             
-              
-        
+                     
     def Check(self, TraceFile):        
         Trace = open(TraceFile, 'r')
         
@@ -52,12 +50,9 @@ class Z3Solver:
                 return T
         else:
             return 0        #search completed
-        
-        
-        
+            
     def get_first_test_case(self):
         BaseConstraint = ''
-        
         for table in self.State.getTableListForTestCase():
             BaseConstraint = self.State.AddConstraints('', table)
         BaseConstraint = BaseConstraint[:-2]

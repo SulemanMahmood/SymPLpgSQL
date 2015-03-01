@@ -25,3 +25,4 @@ class ChoicesClass:
             return Cond, var_upd, tbl_upd
         else:
             return '', {}, {}
+        

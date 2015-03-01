@@ -29,8 +29,6 @@ class SymbolicExecutor:
         T = open(self.TraceFile,'w')
         T.close
         
-            
-    
     def ExecuteTest(self, T):
         DBConn = psycopg2.connect(dbname='CourseRegister', database='test', user='suleman', password='123', host='localhost', port='5432')
         DB = DBConn.cursor()
