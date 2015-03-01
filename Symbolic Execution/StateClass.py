@@ -116,7 +116,7 @@ class StateClass:
         return self.State[0]['Tables'][TableName].getPKColumns()
         
     def getZ3ObjectForTableElement(self,TableName, ColIndex, RowNum):
-        return self.State[0]['Tables'][TableName].getZ3ObjectForTableElement(ColIndex, RowNum)
+        return self.Current_Tables[TableName].getZ3ObjectForTableElement(ColIndex, RowNum)
         
     def AdvanceState(self):
         Old_State_id = self.Current_State_id
@@ -135,20 +135,6 @@ class StateClass:
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
             
         self.Set_Current_State()
-        
-    def ProcessLine(self,Line):
-        self.AdvanceState()
-        Parts = Line.split('\t')
-        
-        # Here we interpret our instrumentation
-        if Parts[0] == 'IF':    
-            Condition = Parts[1]
-            Condition = self.SubstituteVars(Condition)
-               
-            self.State[self.Current_State_id]['Choices'].AddChoice(Condition, {}, {})
-            self.State[self.Current_State_id]['Choices'].AddChoice('Not('+Condition+')', {}, {})
-            
-            return False
         
     def SubstituteVars(self,Condition):
         for k, v in self.Alaises.items():
@@ -181,4 +167,127 @@ class StateClass:
             return True
         else:
             return False
+    
+    def MakeCondition(self,Parts,i,Condition):
+        if Parts[i] == '=':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '(')
+            Condition = Condition + ' = '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ')', i+1
+        
+        elif Parts[i] == '>':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '(')
+            Condition = Condition + ' > '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ')', i+1
+        
+        elif Parts[i] == '<':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '(')
+            Condition = Condition + ' > '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ')', i+1
+        
+        else:
+            Condition = Condition + Parts[i]
+            return Condition, i
+    
+    def SubstituteTableRow(self, Condition, TableName, RowNum):
+        Table = self.Current_Tables[TableName]
+        for Name in Table.getColumnNameList():
+            Condition = Condition.replace(' '+Name+' ', " self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
+            Condition = Condition.replace('('+Name+' ', "(self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
+            Condition = Condition.replace(' '+Name+')', " self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
+            Condition = Condition.replace('('+Name+')', "(self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
+        
+        return Condition    
+
+    def AddConstraints(self, Condition, TableName):
+        #Primary Key Constraint
+        Rows = self.getNumberOfRowsForTestCase(TableName)
+        for i in range(Rows):
+            for j in range(i+1,Rows):
+                for k in self.getPKColumnsForTestCase(TableName):
+                    Condition = Condition + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " != " + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
+        
+        return Condition
+    
+    def ProcessLine(self,Line):
+        self.AdvanceState()
+        Parts = Line.split('\t')
+        
+        # Here we interpret our instrumentation
+        if Parts[0] == 'IF':    
+            Condition = Parts[1]
+            Condition = self.SubstituteVars(Condition)
+               
+            self.Current_Choices.AddChoice(Condition, {}, {})
+            self.Current_Choices.AddChoice('Not('+Condition+')', {}, {})
+            
+        elif Parts[0] == 'T_SeqScan':
+            i = 1
+            TableName = Parts[i]
+            i = i+1
+            
+            if (Parts[i] == 'Conditions'):
+                
+                Condition, i = self.MakeCondition(Parts, i+1, '')
+                Condition = self.SubstituteVars(Condition)
+                NoDataCond = 'Not('+Condition+')'
+                
+                print(Condition)
+                
+                #No Data Found
+                CompleteCondition = ''
+                for j in range(self.Current_Tables[TableName].getNumberOfRows()):
+                    CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, j) + ', '
+                
+                CompleteCondition = self.AddConstraints(CompleteCondition, TableName)
+                CompleteCondition = CompleteCondition[:-2]
+                print(CompleteCondition)
+                
+                self.Current_Choices.AddChoice(CompleteCondition, {}, {})
+                    
+                #One Row Found
+                for j in range(self.Current_Tables[TableName].getNumberOfRows()):
+                    CompleteCondition = ''
+                    CompleteCondition = CompleteCondition + self.SubstituteTableRow(Condition, TableName, j) + ', '
+                    for k in range(self.Current_Tables[TableName].getNumberOfRows()):
+                        if (j == k):
+                            pass
+                        else:
+                            CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, k) + ', '
+                    
+                    CompleteCondition = self.AddConstraints(CompleteCondition, TableName)
+                    CompleteCondition = CompleteCondition[:-2]
+                    print(CompleteCondition)
+                    
+                    self.Current_Choices.AddChoice(CompleteCondition, {}, {})
+                
+                #Two Rows Found
+                CompleteCondition = ''
+                for j in range(self.Current_Tables[TableName].getNumberOfRows()):
+                    CompleteCondition = CompleteCondition + self.SubstituteTableRow(Condition, TableName, j) + ', '
+                    for k in range(j+1, self.Current_Tables[TableName].getNumberOfRows()):
+                        CompleteCondition = CompleteCondition + self.SubstituteTableRow(Condition, TableName, k) + ', '                    
+                        for l in range(self.Current_Tables[TableName].getNumberOfRows()):
+                            if (l == j or l == k):
+                                pass
+                            else:
+                                CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, l) + ', '
+                                
+                        CompleteCondition = self.AddConstraints(CompleteCondition, TableName)
+                        CompleteCondition = CompleteCondition[:-2]
+                        print(CompleteCondition)
+                        self.Current_Choices.AddChoice(CompleteCondition, {}, {})
+                        CompleteCondition = ''
+                
+                
+            else:
+                #all rows selected
+                RowCount = (self.Tables[TableName]).getNumberOfRows()
+                if (RowCount > 0):
+                    #table in not Null so need to construct internal table
+                    pass
+            return False
+        
         
