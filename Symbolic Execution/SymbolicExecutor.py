@@ -1,5 +1,7 @@
 from Z3Solver import Z3Solver
+from StateClass import StateClass
 import psycopg2
+from TestCaseParser import TestCaseParser
 
 class SymbolicExecutor:
     
@@ -9,7 +11,9 @@ class SymbolicExecutor:
         
     
     def run(self):
-        Z3 = Z3Solver(self.proc_name)
+        State = StateClass(self.proc_name)
+        CaseParser = TestCaseParser(self.proc_name)
+        Z3 = Z3Solver(State, CaseParser)
         T = Z3.get_first_test_case()
         
         while True:

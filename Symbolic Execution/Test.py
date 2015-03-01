@@ -1,16 +1,18 @@
-from z3 import Int, Solver
-V = {}
+from z3 import *
 
 x = Int('x')
 y = Int('y')
 z = Int('z')
 
-print(V)
+S = Solver()
 
-s = Solver()
+S.push()
+S.add(x > y)
 
-s.add(x > y, x > z)
+S.push()
+S.add(y > z)
 
-print(s)
-# base constraint for course table
-print(s.check())
+
+print(S)
+S.pop()
+print(S)

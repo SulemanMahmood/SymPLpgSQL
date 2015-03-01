@@ -3,8 +3,6 @@ from reportlab.lib.validators import isString
 
 class TestCaseParser:
 
-    IndexByOrder = {}       # value = [Type, Name]
-    IndexByName = {}        # value = Order
     TestCasePath = './TestCases/'
     
     def __init__(self,proc_name):
@@ -14,29 +12,31 @@ class TestCaseParser:
         
         
         
-    def getCase(self, Model, Variables, Types, Alaises, Tables):
-        print(Model)
+    def getCase(self, Model, State):
         self.CaseNo = self.CaseNo+1
         T = self.TestCasePath + 'Case' + self.CaseNo.__str__() + '.sql'
         
         Test = open(T,'w')
         
         # Truncate Tables first
-        for k,v in Tables.items():
-            line = 'Truncate Table '+ k + ';\n'
+        for table in State.getTableListForTestCase():
+            line = 'Truncate Table '+ table + ';\n'
             Test.write(line);
         
         # Setup data for tables
-        for k,v in Tables.items():
-            for eachrow in v.Rows:
-                line = 'insert into '+ k + '('
+        for table in State.getTableListForTestCase():
+            for eachrow in State.getTableRowForTestCase(table):
+                line = 'insert into '+ table + '('
                 
-                for Index in range(v.ColumsByIndex.__len__()):
-                    line = line + v.getColumnNameFromIndex(Index) + ', '
+                Columns = State.getColumnNamesListForTestCase(table)
+                Types = State.getColumnTypesListForTestCase(table)
+                
+                for ColName in Columns:
+                    line = line + ColName + ', '
                 line = line[:-2] + ') values ('
                 
-                for i in range(v.NumberOfColumns):
-                    Value = self.getValue(Model, v.getColumnTypeFromIndex(Index) , eachrow[i])
+                for i in range(len(Types)):
+                    Value = self.getValue(Model, Types[i] , eachrow[i])
                     if isString(Value):
                         line = line + Value + ', '
                     else:
@@ -51,10 +51,10 @@ class TestCaseParser:
         # Setup procedure Executeion
         line = 'Select ' + self.proc_name + '('
         
-        for i in range (Alaises.__len__()):
-            Name = Alaises['$'+(i+1).__str__()]
-            Variable = (Variables[Name])[0]
-            Type = Types[Name]
+        for i in range (State.getNoOfInputs()):
+            Name = '$'+(i+1).__str__()
+            Variable = State.getZ3ObjectFromNameForTestCase(Name)
+            Type = State.getTypeFromNameForTestCase(Name)
 
             Value = self.getValue(Model, Type, Variable)
             
@@ -73,7 +73,6 @@ class TestCaseParser:
     
     
     def getValue(self, Model, Type, Variable):
-        
         if (Type == 'Int'):
             try:
                 value = Model.evaluate(Variable)
