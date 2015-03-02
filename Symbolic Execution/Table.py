@@ -114,3 +114,20 @@ class Table:
             T.Rows.append(row)
         
         return T
+    
+    def CreateSelectiveCopy(self, ColumnList, RowList):
+        T = Table('Results', False, False)
+        
+        ColumnIndex = 0
+        for ColName in ColumnList:
+            T.ColumnsByName[ColName] =  [self.ColumnsByName[ColName][0], ColumnIndex]
+            T.ColumsByIndex[ColumnIndex] = [self.ColumnsByName[ColName][0], ColName]
+            ColumnIndex = ColumnIndex + 1
+            
+        for RowIndex in RowList:
+            row = []
+            for ColName in ColumnList:
+                row.append(self.Rows[RowIndex][self.ColumnsByName[ColName][1]])                 
+            T.Rows.append(row)
+        
+        return T

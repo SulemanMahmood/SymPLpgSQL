@@ -2,27 +2,30 @@ from z3 import Int
 from Table import Table
 from ChoicesClass import ChoicesClass
 
-class StateClass:
-    Current_Variables = {}
-    Current_Tables = {}
-    #Current_Choices
-    Current_State_id = 0
-    PreviousChoice_State_ID = 0
+class StateClass:    
     
-    Types = {}
-    Alaises = {}
-    
-    State = {}
-    
-    def __init__(self, proc_name):
-        DetailsFile = './Resources/'+proc_name+'Details.txt'
-        Details = open(DetailsFile,'r')
+    def __init__(self, proc_name):   
+        self.Current_State_id = 0
+        self.PreviousChoice_State_ID = 0
         
+        self.Types = {}
+        self.Alaises = {}
+        
+        self.State = {}
         self.State[self.Current_State_id] = {}
         self.State[self.Current_State_id]['Variables'] = {}
         self.State[self.Current_State_id]['Tables'] = {}
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
+        #self.State[self.Current_State_id]['Results']     Added Later
+        
+        self.Current_Variables = {}
+        self.Current_Tables = {}
+        #self.Current_Choices        added later in current state setup
+        #self.Current_Results        added later in Next Choice Function. Maybe useless.
          
+        DetailsFile = './Resources/'+proc_name+'Details.txt'
+        Details = open(DetailsFile,'r')
+        
         NumberOfInputs = int(Details.readline())
         for i in range(NumberOfInputs):
             Line = Details.readline()
@@ -136,6 +139,15 @@ class StateClass:
         
     def getZ3ObjectForTableElement(self,TableName, ColIndex, RowNum):
         return self.Current_Tables[TableName].getZ3ObjectForTableElement(ColIndex, RowNum)
+    
+    def getZ3ObjectFirstRowColumnFromPreviousResult(self,index):
+        return self.State[self.Current_State_id - 1]['Results'].getZ3ObjectForTableElement(index,0)
+        
+    def isPreviousResultNULL(self):
+        if self.State[self.Current_State_id - 1]['Results'] == None:
+            return True
+        else:
+            return False
         
     def AdvanceState(self):
         Old_State_id = self.Current_State_id
@@ -185,8 +197,9 @@ class StateClass:
         return Condition
     
     def NextChoice(self):
-        Cond, Var_upd, Tbl_upd = self.Current_Choices.getNextCondition()
-        # No idea what to do with others yet
+        Cond, Result_Table = self.Current_Choices.getNextCondition()
+        self.State[self.Current_State_id]['Results'] = Result_Table
+        self.Current_Results = Result_Table
         
         State_Advanced = self.Current_State_id > self.PreviousChoice_State_ID
         self.PreviousChoice_State_ID = self.Current_State_id
@@ -204,7 +217,7 @@ class StateClass:
     def MakeCondition(self,Parts,i,Condition):
         if Parts[i] == '=':
             Condition, i = self.MakeCondition(Parts, i+1, Condition + '(')
-            Condition = Condition + ' = '
+            Condition = Condition + ' == '
             Condition, i = self.MakeCondition(Parts, i+1, Condition)
             return Condition + ')', i+1
         
@@ -249,17 +262,28 @@ class StateClass:
         Parts = Line.split('\t')
         
         # Here we interpret our instrumentation
+        ######################################################################################################################
+        ####################################################   IF   ##########################################################
+        ######################################################################################################################
         if Parts[0] == 'IF':    
             Condition = Parts[1]
             Condition = self.SubstituteVars(Condition)
                
-            self.Current_Choices.AddChoice(Condition, {}, {})
-            self.Current_Choices.AddChoice('Not('+Condition+')', {}, {})
+            self.Current_Choices.AddChoice(Condition, None)
+            self.Current_Choices.AddChoice('Not('+Condition+')', None)
             
+        ######################################################################################################################
+        ##################################################  T_SeqScan   ######################################################
+        ######################################################################################################################        
         elif Parts[0] == 'T_SeqScan':
-            i = 1
-            TableName = Parts[i]
-            i = i+1
+            TableName = Parts[1]
+            
+            if Parts[2] == 'TargetList':
+                ColumnList = []
+                i = 3
+                while (Parts[i] != 'Conditions') and (i < len(Parts)) :
+                    ColumnList.append(Parts[i])
+                    i = i+1
             
             if (Parts[i] == 'Conditions'):
                 
@@ -278,7 +302,7 @@ class StateClass:
                 CompleteCondition = CompleteCondition[:-2]
                 print(CompleteCondition)
                 
-                self.Current_Choices.AddChoice(CompleteCondition, {}, {})
+                self.Current_Choices.AddChoice(CompleteCondition, None)
                     
                 #One Row Found
                 for j in range(self.Current_Tables[TableName].getNumberOfRows()):
@@ -294,7 +318,8 @@ class StateClass:
                     CompleteCondition = CompleteCondition[:-2]
                     print(CompleteCondition)
                     
-                    self.Current_Choices.AddChoice(CompleteCondition, {}, {})
+                    InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,[j])
+                    self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                 
                 #Two Rows Found
                 CompleteCondition = ''
@@ -311,7 +336,8 @@ class StateClass:
                         CompleteCondition = self.AddConstraints(CompleteCondition, TableName)
                         CompleteCondition = CompleteCondition[:-2]
                         print(CompleteCondition)
-                        self.Current_Choices.AddChoice(CompleteCondition, {}, {})
+                        InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,[j,k])
+                        self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                         CompleteCondition = ''
                 
                 
@@ -319,10 +345,42 @@ class StateClass:
                 #all rows selected
                 RowCount = (self.Tables[TableName]).getNumberOfRows()
                 if (RowCount > 0):
-                    #table in not Null so need to construct internal table
+                    #  table in not Null so need to construct internal table
                     pass
+                
             return False
         
+        ######################################################################################################################
+        #####################################################  Into  #########################################################
+        ###################################################################################################################### 
+        elif Parts[0] == 'Into':
+            if not self.isPreviousResultNULL():
+                Targets = []
+                i = 1
+                while i < len(Parts)-1:
+                    Targets.append(Parts[i])
+                    i = i+1
+                
+                ParsedTargets = []
+                for Target in Targets:
+                    self.AddNewZ3ObjectForVariable(Target)
+                    ParsedTargets.append(self.SubstituteVars(' '+Target+' '))
+                
+                # Now we make the condition to be added
+                Condition = ''
+                i = 0
+                for Target in ParsedTargets:
+                    Condition = Condition + Target + ' == ' + "self.State.getZ3ObjectFirstRowColumnFromPreviousResult(" + i.__str__() + ")" + ", "
+                    i = i + 1
+                Condition = Condition[:-2]
+                
+                self.Current_Choices.AddChoice(Condition, None)
+                
+                return False
+        
+        ######################################################################################################################
+        ##################################################  ASSIGNMENT  ######################################################
+        ######################################################################################################################      
         elif Parts[0] == 'ASSIGNMENT':
             Target = Parts[1]
             Expr = Parts[2]
@@ -332,6 +390,6 @@ class StateClass:
             self.AddNewZ3ObjectForVariable(Target)
             Target = self.SubstituteVars(' '+Target+' ')
             Condition = Target + ' == ' + Expr
-            self.Current_Choices.AddChoice(Condition, {}, {})
+            self.Current_Choices.AddChoice(Condition, None)
             return False
         
