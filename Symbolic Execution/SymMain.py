@@ -1,6 +1,6 @@
 from SymbolicExecutor import SymbolicExecutor
 
-proc_name = 'ReadNum2'
+proc_name = 'Sum'
 TraceFile = '/home/suleman/TraceLog.txt'
 
 Executor = SymbolicExecutor(proc_name, TraceFile)

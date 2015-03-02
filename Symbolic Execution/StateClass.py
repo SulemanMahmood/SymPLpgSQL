@@ -46,25 +46,38 @@ class StateClass:
         #Initialize Current State
         self.Set_Current_State()      
         
-    def SetupVariable(self, In):
+    def SetupVariable(self, In):    #Works only for State 0
         Type = In[0]
         Name = In[1]
         
         self.Types[Name] = Type
-                
+        
+        if (len(In) > 2):
+            Alais = In[2]
+            self.Alaises[Alais] = Name
+                    
+        self.State[self.Current_State_id]['Variables'][Name] = self.getZ3Object(Type, Name)
+        
+        
+    def getZ3Object(self, Type, Name):
         if (Type == 'Int'):
-            self.State[self.Current_State_id]['Variables'][Name] = Int(Name)
+            return Int(Name)
             
         elif (Type == 'String'):
             pass
         
         elif (Type == 'Date'):
-            pass
-        
-        if (len(In) > 2):
-            Alais = In[2]
-            self.Alaises[Alais] = Name
+            pass    
                 
+    def AddNewZ3ObjectForVariable(self,Name):
+        if self.Alaises.__contains__(Name):
+            Name = self.Alaises[Name]
+        Type = self.Types[Name]
+        NewName = Name + self.Current_State_id.__str__()
+        
+        self.State[self.Current_State_id]['Variables'][Name] = self.getZ3Object(Type, NewName)
+        
+    
     def Set_Current_State(self):
         self.Current_Variables = self.State[self.Current_State_id]['Variables']
         self.Current_Tables = self.State[self.Current_State_id]['Tables']
@@ -96,6 +109,12 @@ class StateClass:
             return self.State[self.Current_State_id]['Variables'][self.Alaises[Name]]
         else:
             return self.State[self.Current_State_id]['Variables'][Name]
+    
+    def getOldZ3ObjectFromName(self,Name):
+        if self.Alaises.__contains__(Name):
+            return self.State[self.Current_State_id-1]['Variables'][self.Alaises[Name]]
+        else:
+            return self.State[self.Current_State_id-1]['Variables'][Name]
 
     def getTypeFromNameForTestCase(self,Name):
         if self.Alaises.__contains__(Name):
@@ -142,12 +161,26 @@ class StateClass:
             Condition = Condition.replace('('+k+' ', '('+self.Alaises[k]+' ')
             Condition = Condition.replace(' '+k+')', ' '+self.Alaises[k]+')')
             Condition = Condition.replace('('+k+')', '('+self.Alaises[k]+')')
-        
+                    
         for k, v in self.Current_Variables.items():
             Condition = Condition.replace(' '+k+' ', " self.State.getZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace('('+k+' ', "(self.State.getZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace(' '+k+')', " self.State.getZ3ObjectFromName('"+k+"'))")
             Condition = Condition.replace('('+k+')', "(self.State.getZ3ObjectFromName('"+k+"'))")
+        return Condition
+            
+    def SubstituteOldVars(self,Condition):
+        for k, v in self.Alaises.items():
+            Condition = Condition.replace(' '+k+' ', ' '+self.Alaises[k]+' ')
+            Condition = Condition.replace('('+k+' ', '('+self.Alaises[k]+' ')
+            Condition = Condition.replace(' '+k+')', ' '+self.Alaises[k]+')')
+            Condition = Condition.replace('('+k+')', '('+self.Alaises[k]+')')
+        
+        for k, v in self.Current_Variables.items():
+            Condition = Condition.replace(' '+k+' ', " self.State.getOldZ3ObjectFromName('"+k+"') ")
+            Condition = Condition.replace('('+k+' ', "(self.State.getOldZ3ObjectFromName('"+k+"') ")
+            Condition = Condition.replace(' '+k+')', " self.State.getOldZ3ObjectFromName('"+k+"'))")
+            Condition = Condition.replace('('+k+')', "(self.State.getOldZ3ObjectFromName('"+k+"'))")
             
         return Condition
     
@@ -290,4 +323,15 @@ class StateClass:
                     pass
             return False
         
+        elif Parts[0] == 'ASSIGNMENT':
+            Target = Parts[1]
+            Expr = Parts[2]
+            
+            Expr = self.SubstituteOldVars(' ' + Expr + ' ')
+            
+            self.AddNewZ3ObjectForVariable(Target)
+            Target = self.SubstituteVars(' '+Target+' ')
+            Condition = Target + ' == ' + Expr
+            self.Current_Choices.AddChoice(Condition, {}, {})
+            return False
         
