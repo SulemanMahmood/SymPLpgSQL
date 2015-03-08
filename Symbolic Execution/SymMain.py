@@ -1,6 +1,6 @@
 from SymbolicExecutor import SymbolicExecutor
 
-proc_name = 'Max3'
+proc_name = 'JoinTest'
 TraceFile = '/home/suleman/TraceLog.txt'
 
 Executor = SymbolicExecutor(proc_name, TraceFile)

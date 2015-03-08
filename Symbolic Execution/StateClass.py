@@ -17,6 +17,7 @@ class StateClass:
         self.State[self.Current_State_id]['Tables'] = {}
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
         #self.State[self.Current_State_id]['Results']     Added Later
+        #self.State[self.Current_State_id]['Node']        Added Later
         
         self.Current_Variables = {}
         self.Current_Tables = {}
@@ -41,6 +42,8 @@ class StateClass:
         NumberOfTables = int(Details.readline())
         for i in range(NumberOfTables):
             Tablename = Details.readline()
+            if Tablename[-1] == '\n':
+                Tablename = Tablename[:-1] 
             if not (self.State[self.Current_State_id]['Tables'].__contains__(Tablename)):
                 self.State[self.Current_State_id]['Tables'][Tablename] = Table(Tablename, True)
                      
@@ -140,6 +143,12 @@ class StateClass:
     def getZ3ObjectForTableElement(self,TableName, ColIndex, RowNum):
         return self.Current_Tables[TableName].getZ3ObjectForTableElement(ColIndex, RowNum)
     
+    def getZ3ObjectForResultElement(self, ResultState, ColIndex, RowNum):
+        return self.State[ResultState]['Results'].getZ3ObjectForTableElement(ColIndex, RowNum)
+    
+    def getZ3ObjectForTableElementForTestCase(self,TableName, ColIndex, RowNum):
+        return self.State[0]['Tables'][TableName].getZ3ObjectForTableElement(ColIndex, RowNum)
+    
     def getZ3ObjectFirstRowColumnFromPreviousResult(self,index):
         return self.State[self.Current_State_id - 1]['Results'].getZ3ObjectForTableElement(index,0)
         
@@ -148,6 +157,9 @@ class StateClass:
             return True
         else:
             return False
+    
+    def getPreviousResult(self):
+        return self.State[self.Current_State_id-1]['Results']
         
     def AdvanceState(self):
         Old_State_id = self.Current_State_id
@@ -244,22 +256,53 @@ class StateClass:
             Condition = Condition.replace('('+Name+' ', "(self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
             Condition = Condition.replace(' '+Name+')', " self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
             Condition = Condition.replace('('+Name+')', "(self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
+        return Condition
+    
+    def SubstituteInnerResultRow(self, Condition, ResultState, RowNum):
+        for i in range(1, self.State[ResultState]['Results'].getNumberOfCols()+1):
+            Condition = Condition.replace(' INNER.' +i.__str__()+' ', " self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + ") ")
+            Condition = Condition.replace('(INNER.' +i.__str__()+' ', "(self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + ") ")
+            Condition = Condition.replace(' INNER.' +i.__str__()+')', " self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + "))")
+            Condition = Condition.replace('(INNER.' +i.__str__()+')', "(self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + "))")
+        return Condition
         
+    def SubstituteOuterResultRow(self, Condition, ResultState, RowNum):
+        for i in range(self.State[ResultState]['Results'].getNumberOfCols()):
+            Condition = Condition.replace(' OUTER.' +i.__str__()+' ', " self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + ") ")
+            Condition = Condition.replace('(OUTER.' +i.__str__()+' ', "(self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + ") ")
+            Condition = Condition.replace(' OUTER.' +i.__str__()+')', " self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + "))")
+            Condition = Condition.replace('(OUTER.' +i.__str__()+')', "(self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + "))")
         return Condition    
-
-    def AddConstraints(self, Condition, TableName):
+    def AddConstraintsForTestCase(self, Condition, TableName):
         #Primary Key Constraint
         Rows = self.getNumberOfRowsForTestCase(TableName)
         for i in range(Rows):
             for j in range(i+1,Rows):
                 for k in self.getPKColumnsForTestCase(TableName):
-                    Condition = Condition + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " != " + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
+                    Condition = Condition + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " != " + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
         
         return Condition
+
+    def AddAllBaseConditionsForTestCase(self, BaseConstraint):
+        for table in self.getTableListForTestCase():
+            BaseConstraint = self.AddConstraintsForTestCase(BaseConstraint, table)
+        return BaseConstraint[:-2]
+    
+    def getPlanBottom(self,State_ID):
+        NodeName = self.State[State_ID]['Node']
+        if NodeName == 'T_SeqScan':
+            return State_ID
+        elif NodeName == 'T_Hash':
+            return self.getPlanBottom(State_ID - 1)
+        elif NodeName == 'T_HashJoin':
+            return self.getPlanBottom( self.getPlanBottom(State_ID - 1) - 1 )
+    
+    def MakeJoinResult(self, Inner, Outer, ):
     
     def ProcessLine(self,Line):
         self.AdvanceState()
         Parts = Line.split('\t')
+        self.State[self.Current_State_id]['Node'] = Parts[0]
         
         # Here we interpret our instrumentation
         ######################################################################################################################
@@ -271,6 +314,7 @@ class StateClass:
                
             self.Current_Choices.AddChoice(Condition, None)
             self.Current_Choices.AddChoice('Not('+Condition+')', None)
+            return True
             
         ######################################################################################################################
         ##################################################  T_SeqScan   ######################################################
@@ -281,24 +325,23 @@ class StateClass:
             if Parts[2] == 'TargetList':
                 ColumnList = []
                 i = 3
-                while (Parts[i] != 'Conditions') and (i < len(Parts)) :
+                while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
                     ColumnList.append(Parts[i])
                     i = i+1
             
-            if (Parts[i] == 'Conditions'):
+            if ((i < len(Parts) and Parts[i] == 'Conditions')):
                 
                 Condition, i = self.MakeCondition(Parts, i+1, '')
                 Condition = self.SubstituteVars(Condition)
                 NoDataCond = 'Not('+Condition+')'
                 
-                print(Condition)
+                #print(Condition)
                 
                 #No Data Found
                 CompleteCondition = ''
                 for j in range(self.Current_Tables[TableName].getNumberOfRows()):
                     CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, j) + ', '
                 
-                CompleteCondition = self.AddConstraints(CompleteCondition, TableName)
                 CompleteCondition = CompleteCondition[:-2]
                 print(CompleteCondition)
                 
@@ -314,7 +357,6 @@ class StateClass:
                         else:
                             CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, k) + ', '
                     
-                    CompleteCondition = self.AddConstraints(CompleteCondition, TableName)
                     CompleteCondition = CompleteCondition[:-2]
                     print(CompleteCondition)
                     
@@ -333,7 +375,6 @@ class StateClass:
                             else:
                                 CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, l) + ', '
                                 
-                        CompleteCondition = self.AddConstraints(CompleteCondition, TableName)
                         CompleteCondition = CompleteCondition[:-2]
                         print(CompleteCondition)
                         InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,[j,k])
@@ -343,11 +384,11 @@ class StateClass:
                 
             else:
                 #all rows selected
-                RowCount = (self.Tables[TableName]).getNumberOfRows()
+                RowCount = self.Current_Tables[TableName].getNumberOfRows()
                 if (RowCount > 0):
-                    #  table in not Null so need to construct internal table
-                    pass
-                
+                    InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,range(RowCount))
+                    self.Current_Choices.AddChoice('True', InternalTable)
+                    
             return False
         
         ######################################################################################################################
@@ -376,7 +417,7 @@ class StateClass:
                 
                 self.Current_Choices.AddChoice(Condition, None)
                 
-                return False
+            return True
         
         ######################################################################################################################
         ##################################################  ASSIGNMENT  ######################################################
@@ -391,5 +432,134 @@ class StateClass:
             Target = self.SubstituteVars(' '+Target+' ')
             Condition = Target + ' == ' + Expr
             self.Current_Choices.AddChoice(Condition, None)
-            return False
+            return True
         
+        ######################################################################################################################
+        ####################################################  T_Hash  ########################################################
+        ######################################################################################################################      
+        elif Parts[0] == 'T_Hash':
+            self.Current_Choices.AddChoice('True', self.getPreviousResult())
+            return True
+        
+        ######################################################################################################################
+        ##################################################  T_HashJoin  ######################################################
+        ######################################################################################################################      
+        elif Parts[0] == 'T_HashJoin':
+            JoinType = Parts[1]
+            
+            InnerPlanTop = self.Current_State_id - 1
+            OuterPlanTop = self.getPlanBottom(InnerPlanTop) - 1
+            
+            
+            if Parts[2] == 'TargetList':
+                ColumnList = []
+                i = 3
+                while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
+                    col = Parts[i].split('.')
+                    ColumnList.append([col[0], col[1]])
+                    i = i+1
+            
+            if ((i < len(Parts) and Parts[i] == 'Conditions')):
+                
+                Condition, i = self.MakeCondition(Parts, i+1, '')
+                Condition = self.SubstituteVars(Condition)
+                NoDataCond = 'Not('+Condition+')'
+                
+                InnerResult = self.State[InnerPlanTop]['Results']
+                OuterResult = self.State[OuterPlanTop]['Results']
+                
+                if JoinType == 'JOIN_INNER':
+                    if InnerResult == None or OuterResult == None:
+                        self.Current_Choices.AddChoice('True', None)
+                        return True
+                    
+                    #No Data Found
+                    CompleteCondition = ''
+                    for j in range(InnerResult.getNumberOfRows()):
+                        for k in range(OuterResult.getNumberOfRows()):
+                            C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, j)
+                            C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, k)
+                            CompleteCondition = CompleteCondition + C2 + ', '
+                    CompleteCondition = CompleteCondition[:-2]
+                    print(CompleteCondition)
+                    self.Current_Choices.AddChoice(CompleteCondition, None)
+                    
+                    #One Row Found
+                    for j in range(InnerResult.getNumberOfRows()):
+                        for k in range(OuterResult.getNumberOfRows()):
+                            CompleteCondition = ''
+                            C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, j)
+                            C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, k)
+                            CompleteCondition = CompleteCondition + C2 + ', '
+                            for l in range(OuterResult.getNumberOfRows()):
+                                if (l == k):
+                                    pass
+                                else:
+                                    C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, j)
+                                    C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, l)
+                                    CompleteCondition = CompleteCondition + C2 + ', '
+                            CompleteCondition = CompleteCondition[:-2]
+                            print(CompleteCondition)
+                            InternalTable = self.MakeJoinResult(InnerResult, OuterResult, [[j, k]], ColumnList)
+                            self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
+                    
+                    #Two Rows Found
+                    for j in range(InnerResult.getNumberOfRows()):
+                        for k in range(OuterResult.getNumberOfRows()):
+                            for l in range(k+1, OuterResult.getNumberOfRows()):
+                                CompleteCondition = ''
+                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, j)
+                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, k)
+                                CompleteCondition = CompleteCondition + C2 + ', '
+                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, j)
+                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, l)
+                                CompleteCondition = CompleteCondition + C2 + ', '
+                                for m in range(OuterResult.getNumberOfRows()):
+                                    if (m == k or m == l):
+                                        pass
+                                    else:
+                                        C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, j)
+                                        C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, l)
+                                        CompleteCondition = CompleteCondition + C2 + ', '
+                                CompleteCondition = CompleteCondition[:-2]
+                                print(CompleteCondition)
+                                InternalTable = self.MakeJoinResult(InnerResult, OuterResult, [[j, k], [j, l]], ColumnList)
+                                self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
+                                
+                    for j in range(OuterResult.getNumberOfRows()):
+                        for k in range(InnerResult.getNumberOfRows()):
+                            for l in range(k+1, InnerResult.getNumberOfRows()):
+                                CompleteCondition = ''
+                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, j)
+                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, k)
+                                CompleteCondition = CompleteCondition + C2 + ', '
+                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, j)
+                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, l)
+                                CompleteCondition = CompleteCondition + C2 + ', '
+                                for m in range(InnerResult.getNumberOfRows()):
+                                    if (m == k or m == l):
+                                        pass
+                                    else:
+                                        C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, j)
+                                        C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, l)
+                                        CompleteCondition = CompleteCondition + C2 + ', '
+                                CompleteCondition = CompleteCondition[:-2]
+                                print(CompleteCondition)
+                                InternalTable = self.MakeJoinResult(InnerResult, OuterResult [[k, j], [l, j]], ColumnList)
+                                self.Current_Choices.AddChoice(CompleteCondition, InternalTable)    
+                
+            else:
+                #Don't know if it is relevant for joins yet
+                RowCount = self.Current_Tables[TableName].getNumberOfRows()
+                if (RowCount > 0):
+                    InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,range(RowCount))
+                    self.Current_Choices.AddChoice('True', InternalTable)
+            
+            return True
+        
+        ######################################################################################################################
+        ########################################  Invalid OR Unimplemented Node   ############################################
+        ######################################################################################################################
+        else:
+            self.Current_Choices.AddChoice('True', None)
+            return True

@@ -76,6 +76,9 @@ class Table:
     def getNumberOfRows(self):
         return len(self.Rows)
     
+    def getNumberOfCols(self):
+        return len(self.ColumsByIndex)
+    
     def getPKColumns(self):
         return self.PK
     
@@ -85,7 +88,7 @@ class Table:
         for ColIndex in range(self.ColumsByIndex.__len__()):
             V = self.ColumsByIndex[ColIndex]
             Type = V[0]
-            Name = V[1]+ RowIndex.__str__() + ColIndex.__str__()
+            Name = self.Name + "_" + V[1] + RowIndex.__str__() + ColIndex.__str__()
             row.append(self.getZ3Object(Type, Name))
         
         self.Rows.append(row)

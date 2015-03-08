@@ -18,10 +18,12 @@ class Z3Solver:
         
         Line = (Trace.readline())[:-1]
         while Line != '':       
-            ProceedToNextLine = self.State.ProcessLine(Line)
-            if not ProceedToNextLine:
+            ProceedToNextLine = self.ProcessLine(Line)
+            if ProceedToNextLine:
+                Line = (Trace.readline())[:-1]
+                continue
+            else:
                 break
-            Line = (Trace.readline())[:-1]
         Trace.close()
         
         while True:
@@ -37,13 +39,18 @@ class Z3Solver:
                 code = 'self.S.add('+Condition+')'
                 self.S.push()
                 exec(code)
-                print(self.S)
+                Condition = self.State.AddAllBaseConditionsForTestCase('')
+                code = 'self.S.add('+Condition+')'
+                self.S.push()
+                exec(code)
+            #    print(self.S)
                 broken = True
                 break
             
         if broken == True:    
             check = self.S.check()
             print(check)
+            self.S.pop()
             if check.r == 1:
                 M = self.S.model()
                 T = self.CaseParser.getCase(M, self.State)
@@ -52,10 +59,7 @@ class Z3Solver:
             return 0        #search completed
             
     def get_first_test_case(self):
-        BaseConstraint = ''
-        for table in self.State.getTableListForTestCase():
-            BaseConstraint = self.State.AddConstraints('', table)
-        BaseConstraint = BaseConstraint[:-2]
+        BaseConstraint = self.State.AddAllBaseConditionsForTestCase('')
         code = 'self.S.add('+BaseConstraint+')'
         self.S.push()
         exec(code)
@@ -66,4 +70,13 @@ class Z3Solver:
         self.S.pop()
         return T
         
-                
+    def ProcessLine(self, Line):
+        ProcessFurther = self.State.ProcessLine(Line)
+        if ProcessFurther:
+            Condition, StateAdvanced = self.State.NextChoice()
+            code = 'self.S.add('+Condition+')'
+            self.S.push()
+            exec(code)
+            return True
+        else:
+            return False
