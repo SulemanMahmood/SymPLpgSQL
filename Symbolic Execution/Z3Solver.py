@@ -27,36 +27,38 @@ class Z3Solver:
         Trace.close()
         
         while True:
-            broken = False
-            Condition, StateAdvanced = self.State.NextChoice()
-            if not StateAdvanced:
-                self.S.pop()       
-            if (Condition == ''):   # if all choices are exhausted then Backtrack
-                Terminate = self.State.BackTrack()
-                if Terminate:
+            while True:
+                broken = False
+                Condition, StateAdvanced = self.State.NextChoice()
+                if not StateAdvanced:
+                    self.S.pop()       
+                if (Condition == ''):   # if all choices are exhausted then Backtrack
+                    Terminate = self.State.BackTrack()
+                    if Terminate:
+                        break
+                else:
+                    code = 'self.S.add('+Condition+')'
+                    self.S.push()
+                    print(code)
+                    exec(code)
+                    Condition = self.State.AddAllBaseConditionsForTestCase('')
+                    code = 'self.S.add('+Condition+')'
+                    self.S.push()
+                    exec(code)
+                    print(self.S)
+                    broken = True
                     break
+                
+            if broken == True:    
+                check = self.S.check()
+                print(check)
+                self.S.pop()
+                if check.r == 1:
+                    M = self.S.model()
+                    T = self.CaseParser.getCase(M, self.State)
+                    return T
             else:
-                code = 'self.S.add('+Condition+')'
-                self.S.push()
-                exec(code)
-                Condition = self.State.AddAllBaseConditionsForTestCase('')
-                code = 'self.S.add('+Condition+')'
-                self.S.push()
-                exec(code)
-            #    print(self.S)
-                broken = True
-                break
-            
-        if broken == True:    
-            check = self.S.check()
-            print(check)
-            self.S.pop()
-            if check.r == 1:
-                M = self.S.model()
-                T = self.CaseParser.getCase(M, self.State)
-                return T
-        else:
-            return 0        #search completed
+                return 0        #search completed
             
     def get_first_test_case(self):
         BaseConstraint = self.State.AddAllBaseConditionsForTestCase('')
