@@ -1,20 +1,14 @@
-from z3 import *
+from CombinationGenerater import CombinationGenerator
 
-x = Int('x')
-y = Int('y')
-z = Int('z')
-x1 = Int('x1')
+C = CombinationGenerator(1,1)
 
-S = Solver()
+A = C.getAllSinglePairs()
+print(len(A))
+print(A)
 
-S.push()
-S.add( )
-print(S)
-S.push()
-S.add(y == z)
-S.add(True)
-print(S)
-S.pop()
-print(S)
-S.pop()
-print(S)
+B = C.getAllTwoPairCombinations()
+print(len(B))
+print(B)
+
+print(B[0][1] == A[1])
+

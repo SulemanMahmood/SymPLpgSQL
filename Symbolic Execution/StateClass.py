@@ -1,6 +1,7 @@
 from z3 import Int
 from Table import Table
 from ChoicesClass import ChoicesClass
+from CombinationGenerater import CombinationGenerator
 
 class StateClass:    
     
@@ -476,84 +477,59 @@ class StateClass:
                         self.Current_Choices.AddChoice('True', None)
                         return True
                     
+                    InnerRows = InnerResult.getNumberOfRows()
+                    OuterRows = OuterResult.getNumberOfRows()
+                    print('Inner ' + InnerRows.__str__())
+                    print('Outer ' + OuterRows.__str__())
+                    Comb = CombinationGenerator(InnerRows, OuterRows)
+                    
                     #No Data Found
+                    print('No data condition')
                     CompleteCondition = ''
-                    for j in range(InnerResult.getNumberOfRows()):
-                        for k in range(OuterResult.getNumberOfRows()):
-                            C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, j)
-                            C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, k)
-                            CompleteCondition = CompleteCondition + C2 + ', '
+                    for RowPair in Comb.getAllSinglePairs():
+                        C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, RowPair[0])
+                        C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, RowPair[1])
+                        CompleteCondition = CompleteCondition + C2 + ', '
                     CompleteCondition = CompleteCondition[:-2]
                     print(CompleteCondition)
                     self.Current_Choices.AddChoice(CompleteCondition, None)
                     
                     #One Row Found
-                    for j in range(InnerResult.getNumberOfRows()):
-                        for k in range(OuterResult.getNumberOfRows()):
-                            CompleteCondition = ''
-                            C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, j)
-                            C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, k)
-                            CompleteCondition = CompleteCondition + C2 + ', '
-                            for l in range(OuterResult.getNumberOfRows()):
-                                if (l == k):
-                                    pass
-                                else:
-                                    C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, j)
-                                    C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, l)
-                                    CompleteCondition = CompleteCondition + C2 + ', '
-                            CompleteCondition = CompleteCondition[:-2]
-                            print(CompleteCondition)
-                            InternalTable = self.MakeJoinResult(InnerResult, OuterResult, [[j, k]], ColumnList)
-                            self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
+                    print('One Row Conditions')
+                    for RowPair in Comb.getAllSinglePairs():
+                        CompleteCondition = ''
+                        for R in Comb.getAllSinglePairs():
+                            if RowPair == R:                       
+                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, R[0])
+                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
+                                CompleteCondition = CompleteCondition + C2 + ', '
+                            else:
+                                C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, R[0])
+                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
+                                CompleteCondition = CompleteCondition + C2 + ', '
+                        CompleteCondition = CompleteCondition[:-2]
+                        print(CompleteCondition)
+                        InternalTable = self.MakeJoinResult(InnerResult, OuterResult, [RowPair], ColumnList)
+                        self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                     
                     #Two Rows Found
-                    print('Inner ' + InnerResult.getNumberOfRows().__str__())
-                    print('Outer ' + OuterResult.getNumberOfRows().__str__())
-                    for j in range(InnerResult.getNumberOfRows()):
-                        for k in range(OuterResult.getNumberOfRows()):
-                            for l in range(k+1, OuterResult.getNumberOfRows()):
-                                CompleteCondition = ''
-                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, j)
-                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, k)
+                    print('Two Row Conditions')
+                    for RowComb in Comb.getAllTwoPairCombinations():
+                        CompleteCondition = ''
+                        for R in Comb.getAllSinglePairs():
+                            if (RowComb[0] == R) or (RowComb[1] == R):                       
+                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, R[0])
+                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
                                 CompleteCondition = CompleteCondition + C2 + ', '
-                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, j)
-                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, l)
+                            else:
+                                C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, R[0])
+                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
                                 CompleteCondition = CompleteCondition + C2 + ', '
-                                for m in range(OuterResult.getNumberOfRows()):
-                                    if (m == k or m == l):
-                                        pass
-                                    else:
-                                        C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, j)
-                                        C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, m)
-                                        CompleteCondition = CompleteCondition + C2 + ', '
-                                CompleteCondition = CompleteCondition[:-2]
-                                print(CompleteCondition)
-                                InternalTable = self.MakeJoinResult(InnerResult, OuterResult, [[j, k], [j, l]], ColumnList)
-                                self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
-                    
-                    print('Section 2')            
-                    for j in range(OuterResult.getNumberOfRows()):
-                        for k in range(InnerResult.getNumberOfRows()):
-                            for l in range(k+1, InnerResult.getNumberOfRows()):
-                                CompleteCondition = ''
-                                C1 = self.SubstituteInnerResultRow(Condition, OuterPlanTop, j)
-                                C2 = self.SubstituteOuterResultRow(C1, InnerPlanTop, k)
-                                CompleteCondition = CompleteCondition + C2 + ', '
-                                C1 = self.SubstituteInnerResultRow(Condition, OuterPlanTop, j)
-                                C2 = self.SubstituteOuterResultRow(C1, InnerPlanTop, l)
-                                CompleteCondition = CompleteCondition + C2 + ', '
-                                for m in range(InnerResult.getNumberOfRows()):
-                                    if (m == k or m == l):
-                                        pass
-                                    else:
-                                        C1 = self.SubstituteInnerResultRow(NoDataCond, OuterPlanTop, j)
-                                        C2 = self.SubstituteOuterResultRow(C1, InnerPlanTop, m)
-                                        CompleteCondition = CompleteCondition + C2 + ', '
-                                CompleteCondition = CompleteCondition[:-2]
-                                print(CompleteCondition)
-                                InternalTable = self.MakeJoinResult(InnerResult, OuterResult, [[k, j], [l, j]], ColumnList)
-                                self.Current_Choices.AddChoice(CompleteCondition, InternalTable)    
-                
+                        CompleteCondition = CompleteCondition[:-2]
+                        print(CompleteCondition)
+                        InternalTable = self.MakeJoinResult(InnerResult, OuterResult, RowComb, ColumnList)
+                        self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
+            
             else:
                 #Cross Join
                 RowCount = self.Current_Tables[TableName].getNumberOfRows()
