@@ -1,0 +1,7 @@
+3
+Int	x	$1
+Int	y	$2
+Int	z	$3
+0
+1
+numbers

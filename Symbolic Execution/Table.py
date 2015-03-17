@@ -95,6 +95,9 @@ class Table:
             row.append(self.getZ3Object(Type, Name))
         
         self.Rows.append(row)
+        
+    def addPreparedRow(self,row):
+        self.Rows.append(row)
                 
     def getZ3Object(self, Type,Name):
         if (Type == 'Int'):

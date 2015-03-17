@@ -540,6 +540,36 @@ class StateClass:
             return False
         
         ######################################################################################################################
+        ##################################################  T_Result   #######################################################
+        ######################################################################################################################
+        elif (Parts[0] == 'T_Result'):
+            ColumnList = []
+            if Parts[1] == 'TargetList':
+                i = 2
+                while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
+                    if Parts[i] == 'FunctionCall':
+                        print('Function Calls not supported for now')
+                        self.Current_Choices.AddChoice('True', None)
+                        return True
+                    else: 
+                        ColumnList.append(Parts[i])
+                        i = i+1
+            
+            T = Table('Result', False, False);
+            row = []
+            Condition = ''
+            for col in ColumnList:
+                Z3Object = self.getZ3ObjectFromName(col)
+                row.append(Z3Object)
+            T.addPreparedRow(row)
+            
+            if Condition == '':
+                Condition = 'True'        
+            
+            self.Current_Choices.AddChoice(Condition, None)
+            return True
+        
+        ######################################################################################################################
         ########################################  Invalid OR Unimplemented Node   ############################################
         ######################################################################################################################
         else:

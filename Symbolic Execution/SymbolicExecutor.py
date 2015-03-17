@@ -14,16 +14,16 @@ class SymbolicExecutor:
         State = StateClass(self.proc_name)
         CaseParser = TestCaseParser(self.proc_name)
         Z3 = Z3Solver(State, CaseParser)
-        T = Z3.get_first_test_case()
+        Data, Test = Z3.get_first_test_case()
         
         while True:
+            self.ExecuteTest(Data)
             self.CleanUp()
-            self.ExecuteTest(T)
-            T = Z3.Check(self.TraceFile)
-            if not isinstance(T, int):
-                pass
-            else:
-                break
+            self.ExecuteTest(Test)
+            Data, Test = Z3.Check(self.TraceFile)
+            if Test == None:
+                break;
+            
         
     def CleanUp(self):      #Cleaning Up the Trace File
         T = open(self.TraceFile,'w')

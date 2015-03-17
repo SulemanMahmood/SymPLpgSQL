@@ -55,10 +55,9 @@ class Z3Solver:
                 self.S.pop()
                 if check.r == 1:
                     M = self.S.model()
-                    T = self.CaseParser.getCase(M, self.State)
-                    return T
+                    return self.CaseParser.getCase(M, self.State)
             else:
-                return 0        #search completed
+                return None, None        #search completed
             
     def get_first_test_case(self):
         BaseConstraint = self.State.AddAllBaseConditionsForTestCase('')
@@ -67,10 +66,9 @@ class Z3Solver:
         exec(code)
         print(self.S)
         self.S.check()
-        M = self.S.model()
-        T = self.CaseParser.getCase(M, self.State)
         self.S.pop()
-        return T
+        M = self.S.model()
+        return self.CaseParser.getCase(M, self.State)
         
     def ProcessLine(self, Line):
         ProcessFurther = self.State.ProcessLine(Line)

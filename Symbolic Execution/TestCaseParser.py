@@ -11,7 +11,7 @@ class TestCaseParser:
                 
     def getCase(self, Model, State):
         self.CaseNo = self.CaseNo+1
-        T = self.TestCasePath + 'Case' + self.CaseNo.__str__() + '.sql'
+        T = self.TestCasePath + 'Data' + self.CaseNo.__str__() + '.sql'
         
         Test = open(T,'w')
         
@@ -44,6 +44,12 @@ class TestCaseParser:
         
         line = 'commit;\n'
         Test.write(line)
+        Test.flush()
+        Test.close
+        DataFile = T;
+        
+        T = self.TestCasePath + 'Case' + self.CaseNo.__str__() + '.sql'
+        Test = open(T,'w')
         
         # Setup procedure Executeion
         line = 'Select ' + self.proc_name + '('
@@ -62,10 +68,11 @@ class TestCaseParser:
 
         line = line[:-2] + ');\n'                        
         Test.write(line);
-        
         Test.flush()
         Test.close
-        return T
+        
+        TestFile = T
+        return DataFile, TestFile
     
     def getValue(self, Model, Type, Variable):
         if (Type == 'Int'):
