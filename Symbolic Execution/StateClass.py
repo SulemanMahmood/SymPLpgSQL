@@ -273,7 +273,8 @@ class StateClass:
             Condition = Condition.replace('(OUTER.' +i.__str__()+' ', "(self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + ") ")
             Condition = Condition.replace(' OUTER.' +i.__str__()+')', " self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + "))")
             Condition = Condition.replace('(OUTER.' +i.__str__()+')', "(self.State.getZ3ObjectForResultElement(" + ResultState.__str__() + ", " + i.__str__() + ", " + RowNum.__str__() + "))")
-        return Condition    
+        return Condition
+        
     def AddConstraintsForTestCase(self, Condition, TableName):
         #Primary Key Constraint
         Rows = self.getNumberOfRowsForTestCase(TableName)
@@ -283,6 +284,19 @@ class StateClass:
                     Condition = Condition + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " != " + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
         
         return Condition
+    
+    def AddConstraints(self, Condition, TableName):
+        #Primary Key Constraint
+        Rows = self.getNumberOfRows(TableName)
+        for i in range(Rows):
+            for j in range(i+1,Rows):
+                for k in self.getPKColumnsForTestCase(TableName):
+                    Condition = Condition + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " != " + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
+        
+        return Condition
+    
+    def getNumberOfRows(self, TableName):
+        return self.Current_Tables[TableName].getNumberOfRows()
 
     def AddAllBaseConditionsForTestCase(self, BaseConstraint):
         for table in self.getTableListForTestCase():
@@ -566,8 +580,29 @@ class StateClass:
             if Condition == '':
                 Condition = 'True'        
             
-            self.Current_Choices.AddChoice(Condition, None)
+            self.Current_Choices.AddChoice(Condition, T)
             return True
+        
+        ######################################################################################################################
+        ###############################################  T_ModifyTable   #####################################################
+        ######################################################################################################################
+        elif (Parts[0] == 'T_ModifyTable'):
+            PrevResult = self.getPreviousResult()
+ 
+            if Parts[1] == 'CMD_INSERT':
+                TableName = Parts[2]
+                self.Current_Tables[TableName].AddRowsFromTable(PrevResult)
+                Condition = self.AddConstraints('', TableName)
+                NotCondition = 'Not(And('+Condition+'))'
+                self.Current_Choices.AddChoice(Condition, None)
+                self.Current_Choices.AddChoice(NotCondition, None)
+                return False
+                
+            elif Parts[1] == 'CMD_UPDATE':
+                TableName = Parts[2]
+            
+            elif Parts[1] == 'CMD_DELETE':
+                TableName = Parts[2]
         
         ######################################################################################################################
         ########################################  Invalid OR Unimplemented Node   ############################################

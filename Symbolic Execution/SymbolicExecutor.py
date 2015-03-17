@@ -11,9 +11,9 @@ class SymbolicExecutor:
         
     
     def run(self):
+        self.CaseParser = TestCaseParser(self.proc_name)
         State = StateClass(self.proc_name)
-        CaseParser = TestCaseParser(self.proc_name)
-        Z3 = Z3Solver(State, CaseParser)
+        Z3 = Z3Solver(State, self.CaseParser)
         Data, Test = Z3.get_first_test_case()
         
         while True:
@@ -28,12 +28,16 @@ class SymbolicExecutor:
     def CleanUp(self):      #Cleaning Up the Trace File
         T = open(self.TraceFile,'w')
         T.close
+        self.CaseParser.ClearExceptionLog()
         
     def ExecuteTest(self, T):
         DBConn = psycopg2.connect(dbname='CourseRegister', database='test', user='suleman', password='123', host='localhost', port='5432')
         DB = DBConn.cursor()
         print(T)
-        DB.execute(open(T,'r').read())
+        try:
+            DB.execute(open(T,'r').read())
+        except:
+            self.CaseParser.LogExceptionforCase() 
         DB.close
         DBConn.close
     

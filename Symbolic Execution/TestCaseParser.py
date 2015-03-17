@@ -89,4 +89,12 @@ class TestCaseParser:
         
         elif (Type == 'Date'):
             pass
-         
+    
+    def ClearExceptionLog(self):
+        T = open(self.TestCasePath+'ExceptionLog.txt','w')
+        T.close()
+        
+    def LogExceptionforCase(self):
+        E = open(self.TestCasePath+'ExceptionLog.txt', 'a')
+        E.write('Exception in Case '+self.CaseNo.__str__())
+        E.close()
