@@ -645,11 +645,16 @@ class StateClass:
                 
             elif Parts[1] == 'CMD_UPDATE':
                 TableName = Parts[2]
-                self.Current_Choices.AddChoice('True', None)
-                return True
+                self.Current_Tables[TableName].UpdateRowsFromTable(PrevResult)
+                Condition = self.AddConstraints('', TableName)
+                NotCondition = 'Not(And('+Condition+'))'
+                self.Current_Choices.AddChoice(Condition, None)
+                self.Current_Choices.AddChoice(NotCondition, None)
+                return False
             
             elif Parts[1] == 'CMD_DELETE':
                 TableName = Parts[2]
+                self.Current_Tables[TableName].DeleteRowsInTable(PrevResult)
                 self.Current_Choices.AddChoice('True', None)
                 return True
         

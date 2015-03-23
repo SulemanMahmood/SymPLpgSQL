@@ -130,3 +130,23 @@ class Table:
             
     def setRows(self, TableRows):
         self.Rows = TableRows
+        
+    def UpdateRowsFromTable(self, Prev_Result):
+        #ctid is always last column in update
+        for eachrow in Prev_Result.getRows():
+            ctid = eachrow[-1]
+            row = eachrow[:-1]
+            self.Rows[ctid] = row
+    
+    def DeleteRowsInTable(self,Prev_Result):
+        #ctid should be the only column
+        for eachrow in Prev_Result.getRows():
+            ctid = eachrow[-1]
+            self.Rows[ctid] = None
+            
+        Rows = []
+        for eachrow in self.Rows:
+            if eachrow != None:
+                Rows.append(eachrow)
+        
+        self.Rows = Rows 
