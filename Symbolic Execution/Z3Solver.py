@@ -16,11 +16,12 @@ class Z3Solver:
         for i in range(self.State.getTraceLinesToDiscard()):   # Discard lines when we are at base depth
             Trace.readline()
         
-        Line = (Trace.readline())[:-1]
-        while Line != '':       
+        Line = Trace.readline()
+        while Line != '':
+            Line = Line[:-1]       
             ProceedToNextLine = self.ProcessLine(Line)
             if ProceedToNextLine:
-                Line = (Trace.readline())[:-1]
+                Line = Trace.readline()
                 continue
             else:
                 break

@@ -247,7 +247,12 @@ class StateClass:
             return Condition + ')', i+1
         
         else:
-            Condition = Condition + Parts[i]
+            Node = Parts[i].split(' ')
+            if len(Node) == 1:
+                Condition = Condition + Parts[i]
+            else:
+                if Node[0] == 'Int':
+                    Condition = Condition + Node[1]
             return Condition, i
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
@@ -312,9 +317,63 @@ class StateClass:
         elif NodeName == 'T_HashJoin' or NodeName == 'T_MergeJoin':
             return self.getPlanBottom( self.getPlanBottom(State_ID - 1) - 1 )
     
-    def MakeJoinResult(self, Inner, Outer, RowJoins, TargetList):
-        T = Table('Result', False, False);
-        T.CopyRowsForJoin(Inner, Outer, RowJoins, TargetList)
+#     def MakeJoinResult(self, Inner, Outer, RowJoins, TargetList):
+#         T = Table('Result', False, False);
+#         T.CopyRowsForJoin(Inner, Outer, RowJoins, TargetList)
+    
+    def ProcessTargetList(self, ColList, Rows = None, Inner = None, Outer = None):
+        TableRows = []
+        if Rows == None:
+            TableRows.append([])
+        else:
+            for i in range(len(Rows)):
+                TableRows.append([])
+                
+        T = Table('Result' + self.Current_State_id.__str__(), False, False);
+        
+        for row in range(len(TableRows)):
+            for Col in range(len(ColList)):
+                ConstParts = ColList[Col].split(' ')
+                JoinParts = ColList[Col].split('.')
+                
+                if self.Alaises.__contains__(ColList[Col]):
+                    VarName = self.Alaises[ColList[Col]]
+                    TableRows[row].append(self.Current_Variables[VarName])
+                
+                elif self.Current_Variables.__contains__(ColList[Col]):
+                    TableRows[row].append(self.Current_Variables[VarName])
+                
+                elif len(ConstParts) == 2:
+                    Type = ConstParts[0]
+                    Value = ConstParts[1]
+                    
+                    if Type == 'Int':
+                        TableRows[row].append(int(Value))
+                
+                elif len(JoinParts) == 2:
+                    JoinTable = JoinParts[0]
+                    ColIndex = int(JoinParts[1])
+                    InnerRow = Rows[row][0]
+                    OuterRow = Rows[row][1]
+                    
+                    if JoinTable == 'INNER':
+                        TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
+                    elif JoinTable == 'OUTER':
+                        TableRows[row].append(Outer.getZ3ObjectForTableElement(ColIndex, OuterRow))
+                
+                elif ColList[Col] == 'ctid':
+                    InnerRow = Rows[row]
+                    TableRows[row].append(InnerRow)
+                        
+                else:   # more conditions may be added later but right now else is a single table col supplied in Inner
+                    ColIndex = Inner.getColumnIndexFromName(ColList[Col])
+                    InnerRow = Rows[row]
+                    TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
+                    
+                
+        T.setRows(TableRows)
+        return T;
+        
     
     def ProcessLine(self,Line):
         self.AdvanceState()
@@ -334,9 +393,9 @@ class StateClass:
             return True
             
         ######################################################################################################################
-        ##################################################  T_SeqScan   ######################################################
+        ###########################################  T_SeqScan & T_IndexScan  ################################################
         ######################################################################################################################        
-        elif Parts[0] == 'T_SeqScan':
+        elif Parts[0] == 'T_SeqScan' or Parts[0] == 'T_IndexScan':
             TableName = Parts[1]
             
             if Parts[2] == 'TargetList':
@@ -351,7 +410,7 @@ class StateClass:
                 Condition, i = self.MakeCondition(Parts, i+1, '')
                 Condition = self.SubstituteVars(Condition)
                 NoDataCond = 'Not('+Condition+')'
-                
+
                 #print(Condition)
                 
                 #No Data Found
@@ -376,8 +435,7 @@ class StateClass:
                     
                     CompleteCondition = CompleteCondition[:-2]
                     print(CompleteCondition)
-                    
-                    InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,[j])
+                    InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [j], Inner = self.Current_Tables[TableName])
                     self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                 
                 #Two Rows Found
@@ -394,7 +452,7 @@ class StateClass:
                                 
                         CompleteCondition = CompleteCondition[:-2]
                         print(CompleteCondition)
-                        InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,[j,k])
+                        InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [j,k], Inner = self.Current_Tables[TableName]) 
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                         CompleteCondition = ''
                 
@@ -403,7 +461,7 @@ class StateClass:
                 #all rows selected
                 RowCount = self.Current_Tables[TableName].getNumberOfRows()
                 if (RowCount > 0):
-                    InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,range(RowCount))
+                    InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = range(RowCount), Inner = self.Current_Tables[TableName])
                     self.Current_Choices.AddChoice('True', InternalTable)
                 return True
                     
@@ -460,9 +518,9 @@ class StateClass:
             return True
         
         ######################################################################################################################
-        ###########################################  T_HashJoin or T_MergeJoin ###############################################
+        ####################################  T_HashJoin or T_MergeJoin or T_NestLoop  #######################################
         ######################################################################################################################      
-        elif (Parts[0] == 'T_HashJoin') or (Parts[0] == 'T_MergeJoin'):
+        elif (Parts[0] == 'T_HashJoin') or (Parts[0] == 'T_MergeJoin') or (Parts[0] == 'T_NestLoop'):
             JoinType = Parts[1]
             
             InnerPlanTop = self.Current_State_id - 1
@@ -473,8 +531,7 @@ class StateClass:
                 ColumnList = []
                 i = 3
                 while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
-                    col = Parts[i].split('.')
-                    ColumnList.append([col[0], col[1]])
+                    ColumnList.append(Parts[i])
                     i = i+1
             
             if ((i < len(Parts) and Parts[i] == 'Conditions')):
@@ -523,7 +580,7 @@ class StateClass:
                                 CompleteCondition = CompleteCondition + C2 + ', '
                         CompleteCondition = CompleteCondition[:-2]
                         print(CompleteCondition)
-                        InternalTable = self.MakeJoinResult(InnerResult, OuterResult, [RowPair], ColumnList)
+                        InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [RowPair], Inner = InnerResult, Outer = OuterResult)
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                     
                     #Two Rows Found
@@ -541,15 +598,12 @@ class StateClass:
                                 CompleteCondition = CompleteCondition + C2 + ', '
                         CompleteCondition = CompleteCondition[:-2]
                         print(CompleteCondition)
-                        InternalTable = self.MakeJoinResult(InnerResult, OuterResult, RowComb, ColumnList)
+                        InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = RowComb, Inner = InnerResult, Outer = OuterResult)
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
             
             else:
-                #Cross Join
-                RowCount = self.Current_Tables[TableName].getNumberOfRows()
-                if (RowCount > 0):
-                    InternalTable = self.Current_Tables[TableName].CreateSelectiveCopy(ColumnList,range(RowCount))
-                    self.Current_Choices.AddChoice('True', InternalTable)
+                #Cross Join not implemented yet
+                pass
             
             return False
         
@@ -568,19 +622,10 @@ class StateClass:
                     else: 
                         ColumnList.append(Parts[i])
                         i = i+1
+                                   
+            T = self.ProcessTargetList(ColList = ColumnList)
             
-            T = Table('Result', False, False);
-            row = []
-            Condition = ''
-            for col in ColumnList:
-                Z3Object = self.getZ3ObjectFromName(col)
-                row.append(Z3Object)
-            T.addPreparedRow(row)
-            
-            if Condition == '':
-                Condition = 'True'        
-            
-            self.Current_Choices.AddChoice(Condition, T)
+            self.Current_Choices.AddChoice('True', T)
             return True
         
         ######################################################################################################################
@@ -600,9 +645,13 @@ class StateClass:
                 
             elif Parts[1] == 'CMD_UPDATE':
                 TableName = Parts[2]
+                self.Current_Choices.AddChoice('True', None)
+                return True
             
             elif Parts[1] == 'CMD_DELETE':
                 TableName = Parts[2]
+                self.Current_Choices.AddChoice('True', None)
+                return True
         
         ######################################################################################################################
         ########################################  Invalid OR Unimplemented Node   ############################################

@@ -80,7 +80,7 @@ class Table:
         return len(self.Rows)
     
     def getNumberOfCols(self):
-        return len(self.ColumsByIndex)
+        return len(self.Rows[0])
     
     def getPKColumns(self):
         return self.PK
@@ -127,44 +127,6 @@ class Table:
             T.Rows.append(row)
         
         return T
-    
-    def CreateSelectiveCopy(self, ColumnList, RowList):
-        T = Table('Results', False, False)
-        
-        ColumnIndex = 0
-        for ColName in ColumnList:
-            T.ColumnsByName[ColName] =  [self.ColumnsByName[ColName][0], ColumnIndex]
-            T.ColumsByIndex[ColumnIndex] = [self.ColumnsByName[ColName][0], ColName]
-            ColumnIndex = ColumnIndex + 1
             
-        for RowIndex in RowList:
-            row = []
-            for ColName in ColumnList:
-                row.append(self.Rows[RowIndex][self.ColumnsByName[ColName][1]])                 
-            T.Rows.append(row)
-        
-        return T
-    
-    def CopyRowsForJoin(self,Inner, Outer, RowPairs, TargetList):
-        ColumnIndex = 0
-        for Col in TargetList:
-            index = int(Col[1])
-            if Col[0] == 'OUTER':
-                self.ColumnsByName[Outer.getColumnNameFromIndex(index)] =  [Outer.getColumnTypeFromIndex(index), ColumnIndex]
-                self.ColumsByIndex[ColumnIndex] = [Outer.getColumnTypeFromIndex(index), Outer.getColumnNameFromIndex(index)]
-            elif Col[0] == 'INNER':
-                self.ColumnsByName[Inner.getColumnNameFromIndex(index)] =  [Inner.getColumnTypeFromIndex(index), ColumnIndex]
-                self.ColumsByIndex[ColumnIndex] = [Inner.getColumnTypeFromIndex(index), Inner.getColumnNameFromIndex(index)]
-            ColumnIndex = ColumnIndex + 1
-            
-        for RowPair in RowPairs:
-            InnerRow = RowPair[0]
-            OuterRow = RowPair[1]
-            row = []
-            for Col in TargetList:
-                index = int(Col[1])
-                if Col[0] == 'OUTER':
-                    row.append(Outer.getZ3ObjectForTableElement(index, OuterRow))
-                elif Col[0] == 'INNER':
-                    row.append(Inner.getZ3ObjectForTableElement(index, InnerRow))                 
-            self.Rows.append(row)
+    def setRows(self, TableRows):
+        self.Rows = TableRows

@@ -95,6 +95,7 @@ class TestCaseParser:
         T.close()
         
     def LogExceptionforCase(self):
+        print('Logging Exception for Case '+self.CaseNo.__str__())
         E = open(self.TestCasePath+'ExceptionLog.txt', 'a')
         E.write('Exception in Case '+self.CaseNo.__str__())
         E.close()
