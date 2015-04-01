@@ -91,11 +91,11 @@ class TestCaseParser:
             pass
     
     def ClearExceptionLog(self):
-        T = open(self.TestCasePath+'ExceptionLog.txt','w')
+        T = open(self.TestCasePath+ self.proc_name + '_ExceptionLog.txt','w')
         T.close()
         
     def LogExceptionforCase(self):
         print('Logging Exception for Case '+self.CaseNo.__str__())
-        E = open(self.TestCasePath+'ExceptionLog.txt', 'a')
+        E = open(self.TestCasePath+ self.proc_name + '_ExceptionLog.txt', 'a')
         E.write('Exception in Case '+self.CaseNo.__str__())
         E.close()
