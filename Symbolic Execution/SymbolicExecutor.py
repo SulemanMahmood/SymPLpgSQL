@@ -2,11 +2,11 @@ from Z3Solver import Z3Solver
 from StateClass import StateClass
 import psycopg2
 from TestCaseParser import TestCaseParser
+from Config import *
 
 class SymbolicExecutor:
     
-    def __init__(self, proc_name, TraceFile):
-        self.TraceFile = TraceFile
+    def __init__(self, proc_name):
         self.proc_name = proc_name
         
     
@@ -20,18 +20,18 @@ class SymbolicExecutor:
             self.ExecuteTest(Data)
             self.CleanUp()
             self.ExecuteTest(Test)
-            Data, Test = Z3.Check(self.TraceFile)
+            Data, Test = Z3.Check()
             if Test == None:
                 break;
             
         
     def CleanUp(self):      #Cleaning Up the Trace File
-        T = open(self.TraceFile,'w')
+        T = open(TraceFile,'w')
         T.close
         self.CaseParser.ClearExceptionLog()
         
-    def ExecuteTest(self, T):
-        DBConn = psycopg2.connect(dbname='CourseRegister', database='test', user='suleman', password='123', host='localhost', port='5432')
+    def ExecuteTest(self, T):       
+        DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
         DB = DBConn.cursor()
         print(T)
         try:

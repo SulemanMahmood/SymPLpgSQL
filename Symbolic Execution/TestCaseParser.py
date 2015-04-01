@@ -11,7 +11,7 @@ class TestCaseParser:
                 
     def getCase(self, Model, State):
         self.CaseNo = self.CaseNo+1
-        T = self.TestCasePath + 'Data' + self.CaseNo.__str__() + '.sql'
+        T = self.TestCasePath + self.proc_name + '_Data' + self.CaseNo.__str__() + '.sql'
         
         Test = open(T,'w')
         
@@ -48,7 +48,7 @@ class TestCaseParser:
         Test.close
         DataFile = T;
         
-        T = self.TestCasePath + 'Case' + self.CaseNo.__str__() + '.sql'
+        T = self.TestCasePath + self.proc_name + '_Case' + self.CaseNo.__str__() + '.sql'
         Test = open(T,'w')
         
         # Setup procedure Executeion

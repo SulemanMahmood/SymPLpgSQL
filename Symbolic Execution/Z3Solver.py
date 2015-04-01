@@ -1,4 +1,5 @@
 from z3 import *
+from Config import TraceFile
 
 
 class Z3Solver:
@@ -10,7 +11,7 @@ class Z3Solver:
         self.State = State
         self.CaseParser = CaseParser
                      
-    def Check(self, TraceFile):        
+    def Check(self):        
         Trace = open(TraceFile, 'r')
         
         for i in range(self.State.getTraceLinesToDiscard()):   # Discard lines when we are at base depth
