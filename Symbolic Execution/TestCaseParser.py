@@ -5,13 +5,13 @@ class TestCaseParser:
 
     TestCasePath = './TestCases/'
     
-    def __init__(self,proc_name):
+    def __init__(self,Procedure):
         self.CaseNo = 0
-        self.proc_name = proc_name
+        self.Procedure = Procedure
                 
     def getCase(self, Model, State):
         self.CaseNo = self.CaseNo+1
-        T = self.TestCasePath + self.proc_name + '_Data' + self.CaseNo.__str__() + '.sql'
+        T = self.TestCasePath + self.Procedure.getName() + '_Data' + self.CaseNo.__str__() + '.sql'
         
         Test = open(T,'w')
         
@@ -48,13 +48,13 @@ class TestCaseParser:
         Test.close
         DataFile = T;
         
-        T = self.TestCasePath + self.proc_name + '_Case' + self.CaseNo.__str__() + '.sql'
+        T = self.TestCasePath + self.Procedure.getName() + '_Case' + self.CaseNo.__str__() + '.sql'
         Test = open(T,'w')
         
         # Setup procedure Executeion
-        line = 'Select ' + self.proc_name + '('
+        line = 'Select ' + self.Procedure.getName() + '('
         
-        for i in range (State.getNoOfInputs()):
+        for i in range (self.Procedure.getNoOfInputs()):
             Name = '$'+(i+1).__str__()
             Variable = State.getZ3ObjectFromNameForTestCase(Name)
             Type = State.getTypeFromNameForTestCase(Name)
@@ -65,8 +65,11 @@ class TestCaseParser:
                 line = line + Value + ', '
             else:
                 line = line + 'NULL' + ', '
-
-        line = line[:-2] + ');\n'                        
+        
+        if self.Procedure.getNoOfInputs() > 0:
+            line = line[:-2]
+        
+        line = line + ');\n'   
         Test.write(line);
         Test.flush()
         Test.close
@@ -75,7 +78,7 @@ class TestCaseParser:
         return DataFile, TestFile
     
     def getValue(self, Model, Type, Variable):
-        if (Type == 'Int'):
+        if (Type >= 20 and Type <= 23 ):   # Integer type
             try:
                 value = Model.evaluate(Variable)
                 int(value.__str__())
@@ -91,11 +94,11 @@ class TestCaseParser:
             pass
     
     def ClearExceptionLog(self):
-        T = open(self.TestCasePath+ self.proc_name + '_ExceptionLog.txt','w')
+        T = open(self.TestCasePath+ self.Procedure.getName() + '_ExceptionLog.txt','w')
         T.close()
         
     def LogExceptionforCase(self):
         print('Logging Exception for Case '+self.CaseNo.__str__())
-        E = open(self.TestCasePath+ self.proc_name + '_ExceptionLog.txt', 'a')
+        E = open(self.TestCasePath+ self.Procedure.getName() + '_ExceptionLog.txt', 'a')
         E.write('Exception in Case '+self.CaseNo.__str__())
         E.close()

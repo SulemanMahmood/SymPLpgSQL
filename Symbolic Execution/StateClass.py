@@ -2,15 +2,13 @@ from z3 import Int
 from Table import Table
 from ChoicesClass import ChoicesClass
 from CombinationGenerater import CombinationGenerator
+from _ast import Expression
 
 class StateClass:    
     
-    def __init__(self, proc_name):   
+    def __init__(self, Procedure):   
         self.Current_State_id = 0
         self.PreviousChoice_State_ID = 0
-        
-        self.Types = {}
-        self.Alaises = {}
         
         self.State = {}
         self.State[self.Current_State_id] = {}
@@ -20,54 +18,27 @@ class StateClass:
         #self.State[self.Current_State_id]['Results']     Added Later
         #self.State[self.Current_State_id]['Node']        Added Later
         
+        self.Types = {}
         self.Current_Variables = {}
         self.Current_Tables = {}
         #self.Current_Choices        added later in current state setup
         #self.Current_Results        added later in Next Choice Function. Maybe useless.
          
-        DetailsFile = './Resources/'+proc_name+'Details.txt'
-        Details = open(DetailsFile,'r')
-        
-        NumberOfInputs = int(Details.readline())
-        for i in range(NumberOfInputs):
-            Line = Details.readline()
-            In = Line.split()
-            self.SetupVariable(In)
-                     
-        NumberOfLocals = int(Details.readline())
-        for i in range(NumberOfLocals):
-            Line = Details.readline()
-            Local = Line.split()
-            self.SetupVariable(Local)    
-        
-        NumberOfTables = int(Details.readline())
-        for i in range(NumberOfTables):
-            Tablename = Details.readline()
-            if Tablename[-1] == '\n':
-                Tablename = Tablename[:-1] 
-            if not (self.State[self.Current_State_id]['Tables'].__contains__(Tablename)):
-                self.State[self.Current_State_id]['Tables'][Tablename] = Table(Tablename, True)
-                     
-        Details.close
-        
+        for Arg in Procedure.getArgList():
+            self.SetupVariable(Arg)
+             
         #Initialize Current State
         self.Set_Current_State()      
         
-    def SetupVariable(self, In):    #Works only for State 0
+    def SetupVariable(self, In):
         Type = In[0]
         Name = In[1]
         
-        self.Types[Name] = Type
-        
-        if (len(In) > 2):
-            Alais = In[2]
-            self.Alaises[Alais] = Name
-                    
+        self.Types[Name] = Type            
         self.State[self.Current_State_id]['Variables'][Name] = self.getZ3Object(Type, Name)
         
-        
     def getZ3Object(self, Type, Name):
-        if (Type == 'Int'):
+        if (Type >= 20 and Type <= 23 ):   # Integer type
             return Int(Name)
             
         elif (Type == 'String'):
@@ -77,13 +48,9 @@ class StateClass:
             pass    
                 
     def AddNewZ3ObjectForVariable(self,Name):
-        if self.Alaises.__contains__(Name):
-            Name = self.Alaises[Name]
         Type = self.Types[Name]
         NewName = Name + self.Current_State_id.__str__()
-        
         self.State[self.Current_State_id]['Variables'][Name] = self.getZ3Object(Type, NewName)
-        
     
     def Set_Current_State(self):
         self.Current_Variables = self.State[self.Current_State_id]['Variables']
@@ -106,28 +73,16 @@ class StateClass:
         return self.State[0]['Tables'][TableName].getColumnTypeList()
     
     def getZ3ObjectFromNameForTestCase(self,Name):
-        if self.Alaises.__contains__(Name):
-            return self.State[0]['Variables'][self.Alaises[Name]]
-        else:
-            return self.State[0]['Variables'][Name]
+        return self.State[0]['Variables'][Name]
         
     def getZ3ObjectFromName(self,Name):
-        if self.Alaises.__contains__(Name):
-            return self.State[self.Current_State_id]['Variables'][self.Alaises[Name]]
-        else:
-            return self.State[self.Current_State_id]['Variables'][Name]
+        return self.State[self.Current_State_id]['Variables'][Name]
     
     def getOldZ3ObjectFromName(self,Name):
-        if self.Alaises.__contains__(Name):
-            return self.State[self.Current_State_id-1]['Variables'][self.Alaises[Name]]
-        else:
-            return self.State[self.Current_State_id-1]['Variables'][Name]
+        return self.State[self.Current_State_id-1]['Variables'][Name]
 
     def getTypeFromNameForTestCase(self,Name):
-        if self.Alaises.__contains__(Name):
-            return self.Types[self.Alaises[Name]]
-        else:
-            return self.Types[Name]
+        return self.Types[Name]
     
     def getTableRowForTestCase(self, TableName):
         return self.State[0]['Tables'][TableName].getRows()
@@ -180,13 +135,7 @@ class StateClass:
             
         self.Set_Current_State()
         
-    def SubstituteVars(self,Condition):
-        for k, v in self.Alaises.items():
-            Condition = Condition.replace(' '+k+' ', ' '+self.Alaises[k]+' ')
-            Condition = Condition.replace('('+k+' ', '('+self.Alaises[k]+' ')
-            Condition = Condition.replace(' '+k+')', ' '+self.Alaises[k]+')')
-            Condition = Condition.replace('('+k+')', '('+self.Alaises[k]+')')
-                    
+    def SubstituteVars(self,Condition):            
         for k, v in self.Current_Variables.items():
             Condition = Condition.replace(' '+k+' ', " self.State.getZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace('('+k+' ', "(self.State.getZ3ObjectFromName('"+k+"') ")
@@ -195,12 +144,6 @@ class StateClass:
         return Condition
             
     def SubstituteOldVars(self,Condition):
-        for k, v in self.Alaises.items():
-            Condition = Condition.replace(' '+k+' ', ' '+self.Alaises[k]+' ')
-            Condition = Condition.replace('('+k+' ', '('+self.Alaises[k]+' ')
-            Condition = Condition.replace(' '+k+')', ' '+self.Alaises[k]+')')
-            Condition = Condition.replace('('+k+')', '('+self.Alaises[k]+')')
-        
         for k, v in self.Current_Variables.items():
             Condition = Condition.replace(' '+k+' ', " self.State.getOldZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace('('+k+' ', "(self.State.getOldZ3ObjectFromName('"+k+"') ")
@@ -229,30 +172,77 @@ class StateClass:
     
     def MakeCondition(self,Parts,i,Condition):
         if Parts[i] == '=':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '(')
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
             Condition = Condition + ' == '
             Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ')', i+1
+            return Condition + ' )', i+1
         
         elif Parts[i] == '>':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '(')
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
             Condition = Condition + ' > '
             Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ')', i+1
+            return Condition + ' )', i+1
         
         elif Parts[i] == '<':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '(')
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
             Condition = Condition + ' > '
             Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ')', i+1
+            return Condition + ' )', i+1
+        
+        elif Parts[i] == '>=':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+            Condition = Condition + ' >= '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ' )', i+1
+        
+        elif Parts[i] == '<=':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+            Condition = Condition + ' <= '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ' )', i+1
+        
+        elif Parts[i] == '+':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+            Condition = Condition + ' + '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ' )', i+1
+        
+        elif Parts[i] == '-':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+            Condition = Condition + ' - '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ' )', i+1
+        
+        elif Parts[i] == '*':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+            Condition = Condition + ' * '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ' )', i+1
+        
+        elif Parts[i] == '/':
+            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+            Condition = Condition + ' / '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ' )', i+1
+        
+        elif Parts[i] == 'Not':
+            Condition = Condition + 'Not( '
+            Condition, i = self.MakeCondition(Parts, i+1, Condition)
+            return Condition + ' )', i+1
         
         else:
             Node = Parts[i].split(' ')
             if len(Node) == 1:
-                Condition = Condition + Parts[i]
+                raise Exception('Unkown Operator')
             else:
                 if Node[0] == 'Int':
                     Condition = Condition + Node[1]
+                elif Node[0] == 'Col':
+                    Condition = Condition + Node[1]
+                elif Node[0] == 'Param':
+                    Condition = Condition + Node[1]
+                else:
+                    raise Exception('Unknown Data Type')
             return Condition, i
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
@@ -385,7 +375,8 @@ class StateClass:
         ####################################################   IF   ##########################################################
         ######################################################################################################################
         if Parts[0] == 'IF':    
-            Condition = Parts[1]
+            Condition, i = self.MakeCondition(Parts,1,'')
+            print(Condition)
             Condition = self.SubstituteVars(Condition)
                
             self.Current_Choices.AddChoice(Condition, None)
@@ -500,13 +491,14 @@ class StateClass:
         ######################################################################################################################      
         elif Parts[0] == 'ASSIGNMENT':
             Target = Parts[1]
-            Expr = Parts[2]
+            Expr, i = self.MakeCondition(Parts, 2, '')
             
             Expr = self.SubstituteOldVars(' ' + Expr + ' ')
             
             self.AddNewZ3ObjectForVariable(Target)
             Target = self.SubstituteVars(' '+Target+' ')
             Condition = Target + ' == ' + Expr
+            print(Condition)
             self.Current_Choices.AddChoice(Condition, None)
             return True
         

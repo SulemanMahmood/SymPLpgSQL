@@ -6,13 +6,13 @@ from Config import *
 
 class SymbolicExecutor:
     
-    def __init__(self, proc_name):
-        self.proc_name = proc_name
+    def __init__(self, Procedure):
+        self.Procedure = Procedure
         
     
     def run(self):
-        self.CaseParser = TestCaseParser(self.proc_name)
-        State = StateClass(self.proc_name)
+        self.CaseParser = TestCaseParser(self.Procedure)
+        State = StateClass(self.Procedure)
         Z3 = Z3Solver(State, self.CaseParser)
         Data, Test = Z3.get_first_test_case()
         
