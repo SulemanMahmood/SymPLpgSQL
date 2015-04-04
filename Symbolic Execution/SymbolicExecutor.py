@@ -20,15 +20,14 @@ class SymbolicExecutor:
             self.ExecuteTest(Data)
             self.CleanUp()
             self.ExecuteTest(Test)
+            self.SetupLog()
             Data, Test = Z3.Check()
             if Test == None:
                 break;
             
-        
     def CleanUp(self):      #Cleaning Up the Trace File
-        T = open(TraceFile,'w')
+        T = open(Orignal_TraceFile,'w')
         T.close
-        self.CaseParser.ClearExceptionLog()
         
     def ExecuteTest(self, T):       
         DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
@@ -41,3 +40,10 @@ class SymbolicExecutor:
         DB.close
         DBConn.close
     
+    def SetupLog(self):
+        TO = open(Orignal_TraceFile,'r')
+        T = open(TraceFile,'w')
+        T.write(TO.read())
+        TO.close
+        T.close
+        

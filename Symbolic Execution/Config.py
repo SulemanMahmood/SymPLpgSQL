@@ -5,4 +5,5 @@ password='123'
 host='localhost'
 port='5432'
 
-TraceFile = '/home/suleman/TraceLog.txt'
+Orignal_TraceFile = '/home/suleman/TraceLog.txt'
+TraceFile = '/home/suleman/TraceLog1.txt'

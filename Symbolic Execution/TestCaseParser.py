@@ -8,6 +8,7 @@ class TestCaseParser:
     def __init__(self,Procedure):
         self.CaseNo = 0
         self.Procedure = Procedure
+        self.ClearExceptionLog()
                 
     def getCase(self, Model, State):
         self.CaseNo = self.CaseNo+1
