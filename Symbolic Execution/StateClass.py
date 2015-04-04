@@ -2,7 +2,6 @@ from z3 import Int
 from Table import Table
 from ChoicesClass import ChoicesClass
 from CombinationGenerater import CombinationGenerator
-from _ast import Expression
 
 class StateClass:    
     
@@ -47,9 +46,8 @@ class StateClass:
         elif (Type == 'Date'):
             pass    
                 
-    def AddNewZ3ObjectForVariable(self,Name):
-        Type = self.Types[Name]
-        NewName = Name + self.Current_State_id.__str__()
+    def AddNewZ3ObjectForVariable(self,Name, Type):
+        NewName = Name + "_" + self.Current_State_id.__str__()
         self.State[self.Current_State_id]['Variables'][Name] = self.getZ3Object(Type, NewName)
     
     def Set_Current_State(self):
@@ -307,10 +305,6 @@ class StateClass:
         elif NodeName == 'T_HashJoin' or NodeName == 'T_MergeJoin':
             return self.getPlanBottom( self.getPlanBottom(State_ID - 1) - 1 )
     
-#     def MakeJoinResult(self, Inner, Outer, RowJoins, TargetList):
-#         T = Table('Result', False, False);
-#         T.CopyRowsForJoin(Inner, Outer, RowJoins, TargetList)
-    
     def ProcessTargetList(self, ColList, Rows = None, Inner = None, Outer = None):
         TableRows = []
         if Rows == None:
@@ -326,12 +320,8 @@ class StateClass:
                 ConstParts = ColList[Col].split(' ')
                 JoinParts = ColList[Col].split('.')
                 
-                if self.Alaises.__contains__(ColList[Col]):
-                    VarName = self.Alaises[ColList[Col]]
-                    TableRows[row].append(self.Current_Variables[VarName])
-                
-                elif self.Current_Variables.__contains__(ColList[Col]):
-                    TableRows[row].append(self.Current_Variables[VarName])
+                if self.Current_Variables.__contains__(ColList[Col]):
+                    TableRows[row].append(self.Current_Variables[ColList[Col]])
                 
                 elif len(ConstParts) == 2:
                     Type = ConstParts[0]
@@ -363,7 +353,19 @@ class StateClass:
                 
         T.setRows(TableRows)
         return T;
+    
+    def getTable(self, TableName):
+        if self.Current_Tables.__contains__(TableName):
+            return self.Current_Tables[TableName]
+        else:
+            return self.AddNewTable(TableName)
         
+    def AddNewTable(self, TableName):
+        T = Table(TableName)
+        for state in range(self.Current_State_id + 1):
+            T1 = T.Copy()
+            self.State[state]['Tables'][TableName] = T1
+        return self.Current_Tables[TableName]
     
     def ProcessLine(self,Line):
         self.AdvanceState()
@@ -491,11 +493,12 @@ class StateClass:
         ######################################################################################################################      
         elif Parts[0] == 'ASSIGNMENT':
             Target = Parts[1]
-            Expr, i = self.MakeCondition(Parts, 2, '')
-            
+            ReturnType = int(Parts[2])
+
+            Expr, i = self.MakeCondition(Parts, 3, '')
             Expr = self.SubstituteOldVars(' ' + Expr + ' ')
             
-            self.AddNewZ3ObjectForVariable(Target)
+            self.AddNewZ3ObjectForVariable(Target, ReturnType)
             Target = self.SubstituteVars(' '+Target+' ')
             Condition = Target + ' == ' + Expr
             print(Condition)
@@ -625,10 +628,10 @@ class StateClass:
         ######################################################################################################################
         elif (Parts[0] == 'T_ModifyTable'):
             PrevResult = self.getPreviousResult()
- 
-            if Parts[1] == 'CMD_INSERT':
-                TableName = Parts[2]
-                self.Current_Tables[TableName].AddRowsFromTable(PrevResult)
+            TableName = Parts[2]
+            
+            if Parts[1] == 'CMD_INSERT':    
+                self.getTable(TableName).AddRowsFromTable(PrevResult)
                 Condition = self.AddConstraints('', TableName)
                 NotCondition = 'Not(And('+Condition+'))'
                 self.Current_Choices.AddChoice(Condition, None)
@@ -636,8 +639,7 @@ class StateClass:
                 return False
                 
             elif Parts[1] == 'CMD_UPDATE':
-                TableName = Parts[2]
-                self.Current_Tables[TableName].UpdateRowsFromTable(PrevResult)
+                self.getTable(TableName).UpdateRowsFromTable(PrevResult)
                 Condition = self.AddConstraints('', TableName)
                 NotCondition = 'Not(And('+Condition+'))'
                 self.Current_Choices.AddChoice(Condition, None)
@@ -645,8 +647,7 @@ class StateClass:
                 return False
             
             elif Parts[1] == 'CMD_DELETE':
-                TableName = Parts[2]
-                self.Current_Tables[TableName].DeleteRowsInTable(PrevResult)
+                self.getTable(TableName).DeleteRowsInTable(PrevResult)
                 self.Current_Choices.AddChoice('True', None)
                 return True
         

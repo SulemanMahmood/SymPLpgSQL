@@ -1,9 +1,10 @@
-from z3 import Int
+from z3 import *
+from Config import *
 
 class Table:
     TableRows = 3
     
-    def __init__(self, Name, IsADBTable, IsNotCopy = True):
+    def __init__(self, Name, IsADBTable = True, IsNotCopy = True):
         self.Name = Name
         self.ColumnsByName = {}
         self.ColumsByIndex = {}
@@ -13,9 +14,19 @@ class Table:
         
         if IsNotCopy:
             if self.IsADBTable:
-                DetailsFile = './Resources/'+Name+'Details.txt'
-                Details = open(DetailsFile,'r')
+                ColQuery = "Select cols.* from pg_attribute cols, pg_class tab " 
+                + "where tab.oid = cols.attrelid " 
+                + "and tab.relname = '" + self.Name + "' " 
+                + "and attnum > 0 " 
+                + "order by attnum asc "
                 
+                DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
+                DB = DBConn.cursor()
+                DB.execute(ColQuery)
+                
+                for cols in DB.fetchall():
+                    print(cols)
+                    
                 self.NumberOfColumns = int(Details.readline())
                 for index in range(self.NumberOfColumns):
                     Line = Details.readline()
