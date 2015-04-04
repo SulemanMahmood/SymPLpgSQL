@@ -82,3 +82,13 @@ class Z3Solver:
             return True
         else:
             return False
+        
+def getZ3Object(Type, Name):
+    if (Type >= 20 and Type <= 23 ):   # Integer type
+        return Int(Name)
+        
+    elif (Type == 'String'):
+        pass
+    
+    elif (Type == 'Date'):
+        pass

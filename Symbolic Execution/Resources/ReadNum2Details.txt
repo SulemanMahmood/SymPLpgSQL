@@ -1,6 +1,0 @@
-1
-Int	x	$1
-1
-Int y
-1
-numbers

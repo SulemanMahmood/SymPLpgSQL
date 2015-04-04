@@ -2,6 +2,7 @@ from z3 import Int
 from Table import Table
 from ChoicesClass import ChoicesClass
 from CombinationGenerater import CombinationGenerator
+from Z3Solver import getZ3Object
 
 class StateClass:    
     
@@ -34,21 +35,11 @@ class StateClass:
         Name = In[1]
         
         self.Types[Name] = Type            
-        self.State[self.Current_State_id]['Variables'][Name] = self.getZ3Object(Type, Name)
-        
-    def getZ3Object(self, Type, Name):
-        if (Type >= 20 and Type <= 23 ):   # Integer type
-            return Int(Name)
-            
-        elif (Type == 'String'):
-            pass
-        
-        elif (Type == 'Date'):
-            pass    
+        self.State[self.Current_State_id]['Variables'][Name] = getZ3Object(Type, Name)    
                 
     def AddNewZ3ObjectForVariable(self,Name, Type):
         NewName = Name + "_" + self.Current_State_id.__str__()
-        self.State[self.Current_State_id]['Variables'][Name] = self.getZ3Object(Type, NewName)
+        self.State[self.Current_State_id]['Variables'][Name] = getZ3Object(Type, NewName)
     
     def Set_Current_State(self):
         self.Current_Variables = self.State[self.Current_State_id]['Variables']
@@ -233,14 +224,16 @@ class StateClass:
             if len(Node) == 1:
                 raise Exception('Unkown Operator')
             else:
-                if Node[0] == 'Int':
-                    Condition = Condition + Node[1]
-                elif Node[0] == 'Col':
+                if Node[0] == 'Col':
                     Condition = Condition + Node[1]
                 elif Node[0] == 'Param':
                     Condition = Condition + Node[1]
                 else:
-                    raise Exception('Unknown Data Type')
+                    Type = int(Node[0])
+                    if (Type >= 20 and Type <= 23 ):   # Integer type
+                        Condition = Condition + Node[1]
+                    else:
+                        raise Exception('Unknown Data Type In Expression Processing')
             return Condition, i
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
@@ -317,40 +310,43 @@ class StateClass:
         
         for row in range(len(TableRows)):
             for Col in range(len(ColList)):
-                ConstParts = ColList[Col].split(' ')
-                JoinParts = ColList[Col].split('.')
+                Parts = ColList[Col].split(' ')
+                JoinParts = Parts[1].split('.')
                 
-                if self.Current_Variables.__contains__(ColList[Col]):
-                    TableRows[row].append(self.Current_Variables[ColList[Col]])
-                
-                elif len(ConstParts) == 2:
-                    Type = ConstParts[0]
-                    Value = ConstParts[1]
-                    
-                    if Type == 'Int':
-                        TableRows[row].append(int(Value))
-                
-                elif len(JoinParts) == 2:
-                    JoinTable = JoinParts[0]
-                    ColIndex = int(JoinParts[1])
-                    InnerRow = Rows[row][0]
-                    OuterRow = Rows[row][1]
-                    
-                    if JoinTable == 'INNER':
-                        TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
-                    elif JoinTable == 'OUTER':
-                        TableRows[row].append(Outer.getZ3ObjectForTableElement(ColIndex, OuterRow))
-                
-                elif ColList[Col] == 'ctid':
-                    InnerRow = Rows[row]
-                    TableRows[row].append(InnerRow)
+                if Parts[0] == 'Col':
+                    if Parts[1] == 'ctid':
+                        InnerRow = Rows[row]
+                        TableRows[row].append(InnerRow)
                         
-                else:   # more conditions may be added later but right now else is a single table col supplied in Inner
-                    ColIndex = Inner.getColumnIndexFromName(ColList[Col])
-                    InnerRow = Rows[row]
-                    TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
+                    elif len(JoinParts) == 2:
+                        JoinTable = JoinParts[0]
+                        ColIndex = int(JoinParts[1])
+                        InnerRow = Rows[row][0]
+                        OuterRow = Rows[row][1]
+                        
+                        if JoinTable == 'INNER':
+                            TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
+                        elif JoinTable == 'OUTER':
+                            TableRows[row].append(Outer.getZ3ObjectForTableElement(ColIndex, OuterRow)) 
                     
+                    else:   # more conditions may be added later but right now else is a single table col supplied in Inner
+                        ColIndex = Inner.getColumnIndexFromName(Parts[1])
+                        InnerRow = Rows[row]
+                        TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
+                        
+                elif Parts[0] == 'Param':
+                    if self.Current_Variables.__contains__(Parts[1]):
+                        TableRows[row].append(self.Current_Variables[Parts[1]])
                 
+                else:
+                    Type = int(Parts[0])
+                    Value = Parts[1]
+                    
+                    if (Type >= 20 and Type <= 23 ):   # Integer type
+                        TableRows[row].append(int(Value))
+                    else:
+                        raise Exception('Unknown Constant Type')
+                    
         T.setRows(TableRows)
         return T;
     
@@ -408,7 +404,7 @@ class StateClass:
                 
                 #No Data Found
                 CompleteCondition = ''
-                for j in range(self.Current_Tables[TableName].getNumberOfRows()):
+                for j in range(self.getTable(TableName).getNumberOfRows()):
                     CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, j) + ', '
                 
                 CompleteCondition = CompleteCondition[:-2]
@@ -417,10 +413,10 @@ class StateClass:
                 self.Current_Choices.AddChoice(CompleteCondition, None)
                     
                 #One Row Found
-                for j in range(self.Current_Tables[TableName].getNumberOfRows()):
+                for j in range(self.getTable(TableName).getNumberOfRows()):
                     CompleteCondition = ''
                     CompleteCondition = CompleteCondition + self.SubstituteTableRow(Condition, TableName, j) + ', '
-                    for k in range(self.Current_Tables[TableName].getNumberOfRows()):
+                    for k in range(self.getTable(TableName).getNumberOfRows()):
                         if (j == k):
                             pass
                         else:
@@ -433,11 +429,11 @@ class StateClass:
                 
                 #Two Rows Found
                 CompleteCondition = ''
-                for j in range(self.Current_Tables[TableName].getNumberOfRows()):
+                for j in range(self.getTable(TableName).getNumberOfRows()):
                     ConditionPart1 = CompleteCondition + self.SubstituteTableRow(Condition, TableName, j) + ', '
-                    for k in range(j+1, self.Current_Tables[TableName].getNumberOfRows()):
+                    for k in range(j+1, self.getTable(TableName).getNumberOfRows()):
                         CompleteCondition = ConditionPart1 + self.SubstituteTableRow(Condition, TableName, k) + ', '                    
-                        for l in range(self.Current_Tables[TableName].getNumberOfRows()):
+                        for l in range(self.getTable(TableName).getNumberOfRows()):
                             if (l == j or l == k):
                                 pass
                             else:
@@ -452,7 +448,7 @@ class StateClass:
                 
             else:
                 #all rows selected
-                RowCount = self.Current_Tables[TableName].getNumberOfRows()
+                RowCount = self.getTable(TableName).getNumberOfRows()
                 if (RowCount > 0):
                     InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = range(RowCount), Inner = self.Current_Tables[TableName])
                     self.Current_Choices.AddChoice('True', InternalTable)
@@ -473,8 +469,11 @@ class StateClass:
                 
                 ParsedTargets = []
                 for Target in Targets:
-                    self.AddNewZ3ObjectForVariable(Target)
-                    ParsedTargets.append(self.SubstituteVars(' '+Target+' '))
+                    TargetParts = Target.split(' ')
+                    Type = int(TargetParts[0])
+                    Name = TargetParts[1]
+                    self.AddNewZ3ObjectForVariable(Name, Type)
+                    ParsedTargets.append(self.SubstituteVars(' '+Name+' '))
                 
                 # Now we make the condition to be added
                 Condition = ''

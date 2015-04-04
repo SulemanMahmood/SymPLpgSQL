@@ -1,57 +1,67 @@
 from z3 import *
 from Config import *
+import psycopg2
+from Z3Solver import getZ3Object
 
 class Table:
     TableRows = 3
     
     def __init__(self, Name, IsADBTable = True, IsNotCopy = True):
-        self.Name = Name
+        self.Name = Name            # Any change here should go to copy functions as well
         self.ColumnsByName = {}
         self.ColumsByIndex = {}
+        self.NamebyAttnum = {}      
         self.Rows = []
         self.PK = []
         self.IsADBTable = IsADBTable
         
         if IsNotCopy:
             if self.IsADBTable:
-                ColQuery = "Select cols.* from pg_attribute cols, pg_class tab " 
-                + "where tab.oid = cols.attrelid " 
-                + "and tab.relname = '" + self.Name + "' " 
-                + "and attnum > 0 " 
-                + "order by attnum asc "
+                ColQuery = ("Select cols.attname, cols.atttypid, cols.attnum " +
+                "from pg_attribute cols, pg_class tab " +
+                "where tab.oid = cols.attrelid " +
+                "and tab.relname = '" + self.Name + "' " +
+                "and attnum > 0 " + 
+                "order by attnum asc")
                 
                 DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
                 DB = DBConn.cursor()
                 DB.execute(ColQuery)
                 
-                for cols in DB.fetchall():
-                    print(cols)
+                index = 0;
+                for col in DB.fetchall():
+                    Name = col[0]
+                    Type = col[1]
+                    AttNum = col[2]
                     
-                self.NumberOfColumns = int(Details.readline())
-                for index in range(self.NumberOfColumns):
-                    Line = Details.readline()
-                    Col = Line.split()
-                    Type = Col[0]
-                    Name = Col[1]
                     if not (self.ColumnsByName.__contains__(Name)):
                         self.ColumnsByName[Name] = [Type, index]
                     if not (self.ColumsByIndex.__contains__(index)):
                         self.ColumsByIndex[index] = [Type, Name]
+                    if not (self.NamebyAttnum.__contains__(AttNum)):
+                        self.NamebyAttnum[AttNum] = [index, Name]
+                    
+                    index = index + 1
                 
-                Line = Details.readline()
-                while (Line != ''):
-                    Parts = Line.split()
-                    if (Parts[0] == 'PK'):
-                        for i in range(len(Parts) - 1):
-                            self.PK.append((self.ColumnsByName[Parts[i+1]])[1])
-                    
-                    elif (Parts[0] == 'FK'):
-                        pass
-                    
-                    Line = Details.readline()
+                PKQuery = ("Select cons.conkey from pg_constraint cons, pg_class tab " +
+                           "where tab.relname = '" + self.Name +"' " + 
+                           "and cons.conrelid = tab.oid and contype = 'p'")
+                DB.execute(PKQuery)
+                
+                for cols in DB.fetchall():
+                    for AttNum in cols[0]:
+                        self.PK.append(self.NamebyAttnum[AttNum][0])
+                
+                OTQuery = ("Select cons.conkey from pg_constraint cons, pg_class tab " +
+                           "where tab.relname = '" + self.Name +"' " + 
+                           "and cons.conrelid = tab.oid and contype <> 'p'")
+                DB.execute(OTQuery)
+                
+                for cols in DB.fetchall():
+                    raise Exception('Unmodeled Constraints on Table');
                 
                 for i in range(self.TableRows):
-                        self.addRow()
+                    self.addRow()
                 
             else:
                 pass
@@ -103,7 +113,7 @@ class Table:
             V = self.ColumsByIndex[ColIndex]
             Type = V[0]
             Name = self.Name + "_" + V[1] + RowIndex.__str__() + ColIndex.__str__()
-            row.append(self.getZ3Object(Type, Name))
+            row.append(getZ3Object(Type, Name))
         
         self.Rows.append(row)
         
@@ -114,21 +124,12 @@ class Table:
         for row in Result.getRows():
             self.addPreparedRow(row)
                 
-    def getZ3Object(self, Type,Name):
-        if (Type == 'Int'):
-            return Int(Name)
-            
-        elif (Type == 'String'):
-            pass
-        
-        elif (Type == 'Date'):
-            pass
-        
     def Copy(self):
         # Makes a Partly Shallow Partly Deep Copy of the Table
         T = Table(self.Name, self.IsADBTable, False)
         T.ColumnsByName = self.ColumnsByName
         T.ColumsByIndex = self.ColumsByIndex
+        T.NamebyAttnum = self.NamebyAttnum
         T.PK = self.PK
         
         for eachrow in self.Rows:
