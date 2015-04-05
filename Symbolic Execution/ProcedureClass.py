@@ -2,9 +2,11 @@ class ProcedureClass:
     def __init__(self, Name, ArgTypes, ReturnType):
         self.Name = Name
         
-        self.ArgTypes = ArgTypes.split(' ')
-        for i in range(len(self.ArgTypes)):
-            self.ArgTypes[i] = int(self.ArgTypes[i])
+        self.ArgTypes = []
+        if ArgTypes != '':
+            self.ArgTypes = ArgTypes.split(' ')
+            for i in range(len(self.ArgTypes)):
+                self.ArgTypes[i] = int(self.ArgTypes[i])
         
         self.ReturnType = ReturnType
         

@@ -1,4 +1,4 @@
-dbname ='CourseRegister' 
+dbname ='Postbook' 
 database='test'
 user='suleman'
 password='123'

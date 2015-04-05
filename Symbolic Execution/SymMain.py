@@ -5,10 +5,22 @@ import psycopg2
 
 DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
 DB = DBConn.cursor()
+DB.execute("Truncate Table Exception_Log")
+DB.execute("commit")
 DB.execute("Select proname, proargtypes, prorettype from pg_proc where prolang = 11899")
 
     
 for proc in DB.fetchall():
     Procedure = ProcedureClass(proc[0], proc[1], proc[2])
-    Executor = SymbolicExecutor(Procedure)
-    Executor.run()
+    try:
+        Executor = SymbolicExecutor(Procedure)
+        Executor.run()
+        DB.execute("Insert into Exception_Log (proname, status) values ('" + Procedure.getName() +"', 'Completed')")
+        DB.execute("commit")
+    except Exception as e:
+        Error = (e.args).__str__()
+        Error = Error[2:-3]
+        Error = Error.replace('\'','-')
+        insertexpr = "Insert into Exception_Log (proname, status) values ('" + Procedure.getName() +"', '"+ Error +"')"
+        DB.execute(insertexpr)
+        DB.execute("commit")
