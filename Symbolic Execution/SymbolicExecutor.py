@@ -32,17 +32,21 @@ class SymbolicExecutor:
     def ExecuteTest(self, T):       
         DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
         DB = DBConn.cursor()
-        print(T)
+        #print(T)
         try:
             DB.execute(open(T,'r').read())
         except Exception as SqlException:
             Error = (SqlException.args).__str__()
             Error = Error[2:-3]
             Error = Error.replace('\'','-')
-            Log = "Insert into Test_Case_Exception_Log (proname, CaseFileName, Error) values ('" + self.Procedure.getName() +"', '"+T+"', '" +Error+ ")"
+            Log = "Insert into Test_Case_Exception_Log (proname, CaseFileName, Error) values ('" + self.Procedure.getName() +"', '"+T+"', '" +Error+ "')"
             print Log
-            DB.execute(Log)
-            DB.execute("commit") 
+            try:
+                DB.execute("rollback")
+                DB.execute(Log)
+                DB.execute("commit")
+            except Exception as e:
+                print("failed:  " + (e.args).__str__())
         DB.close
         DBConn.close
     

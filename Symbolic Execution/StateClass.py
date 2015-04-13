@@ -400,7 +400,7 @@ class StateClass:
                 Condition = self.SubstituteVars(Condition)
                 NoDataCond = 'Not('+Condition+')'
 
-                #print(Condition)
+                print(Condition)
                 
                 #No Data Found
                 CompleteCondition = ''
