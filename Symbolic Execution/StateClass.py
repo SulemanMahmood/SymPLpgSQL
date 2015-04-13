@@ -594,10 +594,13 @@ class StateClass:
                         print(CompleteCondition)
                         InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = RowComb, Inner = InnerResult, Outer = OuterResult)
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
+                
+                else:
+                    raise Exception('Join not implemeted '+ JoinType)
             
             else:
                 #Cross Join not implemented yet
-                pass
+                raise Exception('Cross Join not implemeted yet')            
             
             return False
         
@@ -610,9 +613,11 @@ class StateClass:
                 i = 2
                 while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
                     if Parts[i] == 'FunctionCall':
-                        print('Function Calls not supported for now')
-                        self.Current_Choices.AddChoice('True', None)
-                        return True
+                        if self.Current_State_id == 1:
+                            self.Current_Choices.AddChoice('True', None)
+                            return True
+                        else:
+                            raise Exception('Sub Procedure Call')
                     else: 
                         ColumnList.append(Parts[i])
                         i = i+1
@@ -654,6 +659,4 @@ class StateClass:
         ########################################  Invalid OR Unimplemented Node   ############################################
         ######################################################################################################################
         else:
-            print('unknown node')
-            self.Current_Choices.AddChoice('True', None)
-            return True
+            raise Exception('Unkown Node ' + Parts[1])

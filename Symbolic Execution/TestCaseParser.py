@@ -8,7 +8,6 @@ class TestCaseParser:
     def __init__(self,Procedure):
         self.CaseNo = 0
         self.Procedure = Procedure
-        self.ClearExceptionLog()
                 
     def getCase(self, Model, State):
         self.CaseNo = self.CaseNo+1
@@ -94,12 +93,3 @@ class TestCaseParser:
         elif (Type == 'Date'):
             pass
     
-    def ClearExceptionLog(self):
-        T = open(self.TestCasePath+ self.Procedure.getName() + '_ExceptionLog.txt','w')
-        T.close()
-        
-    def LogExceptionforCase(self):
-        print('Logging Exception for Case '+self.CaseNo.__str__())
-        E = open(self.TestCasePath+ self.Procedure.getName() + '_ExceptionLog.txt', 'a')
-        E.write('Exception in Case '+self.CaseNo.__str__())
-        E.close()

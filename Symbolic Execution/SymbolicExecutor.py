@@ -35,8 +35,14 @@ class SymbolicExecutor:
         print(T)
         try:
             DB.execute(open(T,'r').read())
-        except:
-            self.CaseParser.LogExceptionforCase() 
+        except Exception as SqlException:
+            Error = (SqlException.args).__str__()
+            Error = Error[2:-3]
+            Error = Error.replace('\'','-')
+            Log = "Insert into Test_Case_Exception_Log (proname, CaseFileName, Error) values ('" + self.Procedure.getName() +"', '"+T+"', '" +Error+ ")"
+            print Log
+            DB.execute(Log)
+            DB.execute("commit") 
         DB.close
         DBConn.close
     
