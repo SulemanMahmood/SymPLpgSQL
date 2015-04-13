@@ -222,18 +222,20 @@ class StateClass:
         else:
             Node = Parts[i].split(' ')
             if len(Node) == 1:
-                raise Exception('Unkown Operator')
+                raise Exception('Unkown Operator '+ Node[0])
             else:
                 if Node[0] == 'Col':
                     Condition = Condition + Node[1]
                 elif Node[0] == 'Param':
                     Condition = Condition + Node[1]
-                else:
+                else:   #Constants
                     Type = int(Node[0])
-                    if (Type >= 20 and Type <= 23 ):   # Integer type
+                    if (Type >= 20 and Type <= 23 ):    # Integer type
+                        Condition = Condition + Node[1]
+                    elif Type == 16:                    # Boolean type
                         Condition = Condition + Node[1]
                     else:
-                        raise Exception('Unknown Data Type In Expression Processing')
+                        raise Exception('Unknown Data Type In Expression Processing ' + Node[1])
             return Condition, i
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
@@ -656,7 +658,27 @@ class StateClass:
                 return True
         
         ######################################################################################################################
+        #############################################  PLPGSQL_STMT_RETURN   #################################################
+        ######################################################################################################################
+        elif Parts[0] == 'PLPGSQL_STMT_RETURN':
+            ReturnType = int(Parts[1])
+            Expr, i = self.MakeCondition(Parts, 2, '')
+            Expr = self.SubstituteOldVars(' ' + Expr + ' ')
+            
+            # Not doing much for retun type yet. It will be handled when we work on sub procedure calls
+            
+            self.Current_Choices.AddChoice('True', None)
+            return True
+        
+        ######################################################################################################################
+        ##################################################  Blank Line  ######################################################
+        ######################################################################################################################
+        elif Parts[0] == '':
+            self.Current_Choices.AddChoice('True', None)
+            return True
+        
+        ######################################################################################################################
         ########################################  Invalid OR Unimplemented Node   ############################################
         ######################################################################################################################
         else:
-            raise Exception('Unkown Node ' + Parts[1])
+            raise Exception('Unkown Node ' + Parts[0])

@@ -8,9 +8,11 @@ class TestCaseParser:
     def __init__(self,Procedure):
         self.CaseNo = 0
         self.Procedure = Procedure
+        
+    def IncrementCaseNumber(self):
+        self.CaseNo = self.CaseNo+1
                 
     def getCase(self, Model, State):
-        self.CaseNo = self.CaseNo+1
         T = self.TestCasePath + self.Procedure.getName() + '_Data' + self.CaseNo.__str__() + '.sql'
         
         Test = open(T,'w')

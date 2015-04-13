@@ -18,9 +18,7 @@ class SymbolicExecutor:
         
         while True:
             self.ExecuteTest(Data)
-            self.CleanUp()
             self.ExecuteTest(Test)
-            self.SetupLog()
             Data, Test = Z3.Check()
             if Test == None:
                 break;
@@ -32,10 +30,13 @@ class SymbolicExecutor:
     def ExecuteTest(self, T):       
         DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
         DB = DBConn.cursor()
-        #print(T)
+        print(T)
         try:
+            self.CleanUp()
             DB.execute(open(T,'r').read())
+            self.SetupLog()
         except Exception as SqlException:
+            self.SetupLog()
             Error = (SqlException.args).__str__()
             Error = Error[2:-3]
             Error = Error.replace('\'','-')

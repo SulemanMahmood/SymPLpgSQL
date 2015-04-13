@@ -28,6 +28,10 @@ class Z3Solver:
                 break
         Trace.close()
         
+        # Advance Case Number
+        if Line == '':
+            self.CaseParser.IncrementCaseNumber()
+        
         while True:
             while True:
                 broken = False
