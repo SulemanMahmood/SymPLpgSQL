@@ -1,13 +1,13 @@
 from z3 import *
 from Config import *
 import psycopg2
-from Z3Solver import getZ3Object
 
 class Table:
     TableRows = 3
     
-    def __init__(self, Name, IsADBTable = True, IsNotCopy = True):
+    def __init__(self, Name, DataHandler, IsADBTable = True, IsNotCopy = True):
         self.Name = Name            # Any change here should go to copy functions as well
+        self.DataHandler = DataHandler
         self.ColumnsByName = {}
         self.ColumsByIndex = {}
         self.NamebyAttnum = {}      
@@ -113,7 +113,7 @@ class Table:
             V = self.ColumsByIndex[ColIndex]
             Type = V[0]
             Name = self.Name + "_" + V[1] + RowIndex.__str__() + ColIndex.__str__()
-            row.append(getZ3Object(Type, Name))
+            row.append(self.DataHandler.getZ3Object(Type, Name))
         
         self.Rows.append(row)
         
@@ -126,7 +126,7 @@ class Table:
                 
     def Copy(self):
         # Makes a Partly Shallow Partly Deep Copy of the Table
-        T = Table(self.Name, self.IsADBTable, False)
+        T = Table(self.Name, self.DataHandler, self.IsADBTable, False)
         T.ColumnsByName = self.ColumnsByName
         T.ColumsByIndex = self.ColumsByIndex
         T.NamebyAttnum = self.NamebyAttnum

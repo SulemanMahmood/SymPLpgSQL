@@ -1,13 +1,13 @@
-from random import randint
 from reportlab.lib.validators import isString
 
 class TestCaseParser:
 
     TestCasePath = './TestCases/'
     
-    def __init__(self,Procedure):
+    def __init__(self,Procedure, DataHandler):
         self.CaseNo = 0
         self.Procedure = Procedure
+        self.DataHandler = DataHandler
         
     def IncrementCaseNumber(self):
         self.CaseNo = self.CaseNo+1
@@ -35,7 +35,7 @@ class TestCaseParser:
                 line = line[:-2] + ') values ('
                 
                 for i in range(len(Types)):
-                    Value = self.getValue(Model, Types[i] , eachrow[i])
+                    Value = self.DataHandler.getValue(Model, Types[i] , eachrow[i])
                     if isString(Value):
                         line = line + Value + ', '
                     else:
@@ -61,7 +61,7 @@ class TestCaseParser:
             Variable = State.getZ3ObjectFromNameForTestCase(Name)
             Type = State.getTypeFromNameForTestCase(Name)
 
-            Value = self.getValue(Model, Type, Variable)
+            Value = self.DataHandler.getValue(Model, Type, Variable)
             
             if isString(Value):
                 line = line + Value + ', '
@@ -78,20 +78,4 @@ class TestCaseParser:
         
         TestFile = T
         return DataFile, TestFile
-    
-    def getValue(self, Model, Type, Variable):
-        if (Type >= 20 and Type <= 23 ):   # Integer type
-            try:
-                value = Model.evaluate(Variable)
-                int(value.__str__())
-                return value.__str__()
-            except:
-                value = randint(0,10)
-                return value.__str__()
-            
-        elif (Type == 'String'):
-            pass
-        
-        elif (Type == 'Date'):
-            pass
     

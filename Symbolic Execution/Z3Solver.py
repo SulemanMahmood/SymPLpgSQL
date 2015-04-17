@@ -87,9 +87,3 @@ class Z3Solver:
         else:
             return False
         
-def getZ3Object(Type, Name):
-    if (Type >= 20 and Type <= 23 ):   # Integer type
-        return Int(Name)
-    
-    else:
-        raise Exception('Unknown Data Type ' + Type.__str__())

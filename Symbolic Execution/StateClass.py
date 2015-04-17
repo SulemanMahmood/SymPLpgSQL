@@ -2,13 +2,13 @@ from z3 import Int
 from Table import Table
 from ChoicesClass import ChoicesClass
 from CombinationGenerater import CombinationGenerator
-from Z3Solver import getZ3Object
 
 class StateClass:    
     
-    def __init__(self, Procedure):   
+    def __init__(self, Procedure, DataHandler):   
         self.Current_State_id = 0
         self.PreviousChoice_State_ID = 0
+        self.DataHandler = DataHandler
         
         self.State = {}
         self.State[self.Current_State_id] = {}
@@ -35,11 +35,11 @@ class StateClass:
         Name = In[1]
         
         self.Types[Name] = Type            
-        self.State[self.Current_State_id]['Variables'][Name] = getZ3Object(Type, Name)    
+        self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, Name)    
                 
     def AddNewZ3ObjectForVariable(self,Name, Type):
         NewName = Name + "_" + self.Current_State_id.__str__()
-        self.State[self.Current_State_id]['Variables'][Name] = getZ3Object(Type, NewName)
+        self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, NewName)
     
     def Set_Current_State(self):
         self.Current_Variables = self.State[self.Current_State_id]['Variables']
@@ -230,12 +230,8 @@ class StateClass:
                     Condition = Condition + Node[1]
                 else:   #Constants
                     Type = int(Node[0])
-                    if (Type >= 20 and Type <= 23 ):    # Integer type
-                        Condition = Condition + Node[1]
-                    elif Type == 16:                    # Boolean type
-                        Condition = Condition + Node[1]
-                    else:
-                        raise Exception('Unknown Data Type In Expression Processing ' + Node[1])
+                    Value = Node[1];
+                    Condition = Condition + self.DataHandler.ProcessConstant(Type, Value).__str__()
             return Condition, i
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
@@ -308,7 +304,7 @@ class StateClass:
             for i in range(len(Rows)):
                 TableRows.append([])
                 
-        T = Table('Result' + self.Current_State_id.__str__(), False, False);
+        T = Table('Result' + self.Current_State_id.__str__(),self.DataHandler, False, False);
         
         for row in range(len(TableRows)):
             for Col in range(len(ColList)):
@@ -343,11 +339,8 @@ class StateClass:
                 else:
                     Type = int(Parts[0])
                     Value = Parts[1]
-                    
-                    if (Type >= 20 and Type <= 23 ):   # Integer type
-                        TableRows[row].append(int(Value))
-                    else:
-                        raise Exception('Unknown Constant Type')
+                
+                    TableRows[row].append(self.DataHandler.ProcessConstant(Type, Value))
                     
         T.setRows(TableRows)
         return T;
@@ -359,7 +352,7 @@ class StateClass:
             return self.AddNewTable(TableName)
         
     def AddNewTable(self, TableName):
-        T = Table(TableName)
+        T = Table(TableName, self.DataHandler)
         for state in range(self.Current_State_id + 1):
             T1 = T.Copy()
             self.State[state]['Tables'][TableName] = T1
