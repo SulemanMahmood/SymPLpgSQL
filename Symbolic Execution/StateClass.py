@@ -381,10 +381,9 @@ class StateClass:
         ######################################################################################################################        
         elif Parts[0] == 'T_SeqScan' or Parts[0] == 'T_IndexScan':
             TableName = Parts[1]
-            
-            if Parts[2] == 'TargetList':
+            i = 2
+            if Parts[i] == 'TargetList':
                 ColumnList = []
-                i = 3
                 while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
                     ColumnList.append(Parts[i])
                     i = i+1

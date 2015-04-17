@@ -52,16 +52,19 @@ class Table:
                     for AttNum in cols[0]:
                         self.PK.append(self.NamebyAttnum[AttNum][0])
                 
-                OTQuery = ("Select cons.conkey from pg_constraint cons, pg_class tab " +
+                OTQuery = ("Select cons.contype from pg_constraint cons, pg_class tab " +
                            "where tab.relname = '" + self.Name +"' " + 
                            "and cons.conrelid = tab.oid and contype <> 'p'")
                 DB.execute(OTQuery)
                 
                 for cols in DB.fetchall():
-                    raise Exception('Unmodeled Constraints on Table');
+                    raise Exception('Unmodeled Constraints on Table ' + cols[0]);
                 
                 for i in range(self.TableRows):
                     self.addRow()
+                    
+                DB.close
+                DBConn.close
                 
             else:
                 pass

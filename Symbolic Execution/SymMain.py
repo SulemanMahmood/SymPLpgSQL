@@ -23,5 +23,6 @@ for proc in DB.fetchall():
         Error = Error[2:-3]
         Error = Error.replace('\'','-')
         insertexpr = "Insert into Exception_Log (proname, status) values ('" + Procedure.getName() +"', '"+ Error +"')"
+        print(insertexpr)
         DB.execute(insertexpr)
         DB.execute("commit")

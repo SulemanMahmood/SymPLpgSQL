@@ -9,7 +9,7 @@ class DataHandlerClass:
         self.StringIndex = 0
     
     def getZ3Object(self, Type, Name):
-        if (Type >= 20 and Type <= 23 ):   # Integer type
+        if (Type >= 20 and Type <= 23 ) or (Type == 1700):   # Integer type or Numeric type
             return Int(Name)
         
         elif Type == 16 :                  # Boolean type
@@ -22,7 +22,7 @@ class DataHandlerClass:
             raise Exception('Unknown Data Type ' + Type.__str__())
         
     def ProcessConstant(self, Type, Value):   # Type as int, Value as String
-        if (Type >= 20 and Type <= 23 ):    # Integer type
+        if (Type >= 20 and Type <= 23 ):   # Integer type
             return int(Value)
 
         elif Type == 16:                    # Boolean type
@@ -41,7 +41,7 @@ class DataHandlerClass:
             raise Exception('Unknown Data Type In Constant Processing ' + Value)
         
     def getValue(self, Model, Type, Variable):
-        if (Type >= 20 and Type <= 23 ):   # Integer type
+        if (Type >= 20 and Type <= 23 ) or (Type == 1700):   # Integer type or Numeric type
             try:
                 value = Model.evaluate(Variable)
                 int(value.__str__())

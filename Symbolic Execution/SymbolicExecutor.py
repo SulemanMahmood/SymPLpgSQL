@@ -39,6 +39,8 @@ class SymbolicExecutor:
             self.SetupLog()
         except Exception as SqlException:
             self.SetupLog()
+            DB.execute('rollback');
+            print("fine till now")
             Error = (SqlException.args).__str__()
             Error = Error[2:-3]
             Error = Error.replace('\'','-')
