@@ -384,6 +384,7 @@ class StateClass:
             i = 2
             if Parts[i] == 'TargetList':
                 ColumnList = []
+                i = i+1
                 while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
                     ColumnList.append(Parts[i])
                     i = i+1
