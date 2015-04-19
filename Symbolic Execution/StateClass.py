@@ -84,6 +84,9 @@ class StateClass:
         
     def getPKColumnsForTestCase(self,TableName):
         return self.State[0]['Tables'][TableName].getPKColumns()
+    
+    def getCheckConsForTestCase(self,TableName):
+        return self.State[0]['Tables'][TableName].getCheckCons()
         
     def getZ3ObjectForTableElement(self,TableName, ColIndex, RowNum):
         return self.Current_Tables[TableName].getZ3ObjectForTableElement(ColIndex, RowNum)
@@ -160,78 +163,88 @@ class StateClass:
             return False
     
     def MakeCondition(self,Parts,i,Condition):
-        if Parts[i] == '=':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' == '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == '>':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' > '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == '<':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' > '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == '>=':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' >= '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == '<=':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' <= '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == '+':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' + '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == '-':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' - '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == '*':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' * '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == '/':
-            Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-            Condition = Condition + ' / '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        elif Parts[i] == 'Not':
-            Condition = Condition + 'Not( '
-            Condition, i = self.MakeCondition(Parts, i+1, Condition)
-            return Condition + ' )', i+1
-        
-        else:
-            Node = Parts[i].split(' ')
-            if len(Node) == 1:
-                raise Exception('Unkown Operator '+ Node[0])
+        Node = Parts[i].split(' ')
+        if len(Node) == 1:
+            if Node[0] in ['65', '67']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' == '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['144']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' != '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['147']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' > '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['66']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' > '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['150']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' >= '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['149']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' <= '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['177']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' + '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['181']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' - '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['141']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' * '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] in ['154']:
+                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
+                Condition = Condition + ' / '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] == 'Not':
+                Condition = Condition + 'Not( '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                return Condition + ' )', i+1
+            
+            elif Node[0] == 'FunctionCall':
+                raise Exception('Sub Procedure Call')
+            
             else:
-                if Node[0] == 'Col':
-                    Condition = Condition + Node[1]
-                elif Node[0] == 'Param':
-                    Condition = Condition + Node[1]
-                else:   #Constants
-                    Type = int(Node[0])
-                    Value = Node[1];
-                    Condition = Condition + self.DataHandler.ProcessConstant(Type, Value).__str__()
+                raise Exception('Unkown Operator '+ Node[0])
+            
+        else:
+            if Node[0] == 'Col':
+                Condition = Condition + Node[1]
+            elif Node[0] == 'Param':
+                Condition = Condition + Node[1]
+            else:   #Constants
+                Type = int(Node[0])
+                Value = Node[1];
+                Condition = Condition + self.DataHandler.ProcessConstant(Type, Value).__str__()
             return Condition, i
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
@@ -241,6 +254,15 @@ class StateClass:
             Condition = Condition.replace('('+Name+' ', "(self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
             Condition = Condition.replace(' '+Name+')', " self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
             Condition = Condition.replace('('+Name+')', "(self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
+        return Condition
+    
+    def SubstituteTableRowForTestCase(self, Condition, TableName, RowNum):
+        Table = self.State[0]['Tables'][TableName]
+        for Name in Table.getColumnNameList():
+            Condition = Condition.replace(' '+Name+' ', " self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
+            Condition = Condition.replace('('+Name+' ', "(self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
+            Condition = Condition.replace(' '+Name+')', " self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
+            Condition = Condition.replace('('+Name+')', "(self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
         return Condition
     
     def SubstituteInnerResultRow(self, Condition, ResultState, RowNum):
@@ -264,9 +286,19 @@ class StateClass:
         Rows = self.getNumberOfRowsForTestCase(TableName)
         for i in range(Rows):
             for j in range(i+1,Rows):
+                C = 'Not(And('
                 for k in self.getPKColumnsForTestCase(TableName):
-                    Condition = Condition + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " != " + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
-        
+                    C = C + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
+                C = C[:-2]
+                C = C + ')), '    
+                Condition = Condition + C
+                
+        #Check Constraints
+        for eachCon in self.getCheckConsForTestCase(TableName):
+            C = self.MakeCondition(eachCon.split('\t'), 0, '')
+            for i in range(Rows):
+                Condition = Condition + self.SubstituteTableRowForTestCase(C, TableName, i) + ', '
+                
         return Condition
     
     def AddConstraints(self, Condition, TableName):
@@ -274,8 +306,19 @@ class StateClass:
         Rows = self.getNumberOfRows(TableName)
         for i in range(Rows):
             for j in range(i+1,Rows):
+                C = 'Not(And('
                 for k in self.getPKColumnsForTestCase(TableName):
-                    Condition = Condition + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " != " + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
+                    C = C + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
+                C = C[:-2]
+                C = C + ')), '    
+                Condition = Condition + C
+        
+        #Check Constraints
+        for eachCon in self.getCheckConsForTestCase(TableName):
+            C = self.MakeCondition(eachCon.split('\t'), 0, '')
+            for i in range(Rows):
+                Condition = Condition + self.SubstituteTableRow(C, TableName, i) + ', '
+                        
         
         return Condition
     

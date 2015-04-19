@@ -13,6 +13,7 @@ class Table:
         self.NamebyAttnum = {}      
         self.Rows = []
         self.PK = []
+        self.CheckConstraint = []
         self.IsADBTable = IsADBTable
         
         if IsNotCopy:
@@ -52,14 +53,24 @@ class Table:
                     for AttNum in cols[0]:
                         self.PK.append(self.NamebyAttnum[AttNum][0])
                 
-                OTQuery = ("Select cons.contype from pg_constraint cons, pg_class tab " +
+                CkCQuery = ("Select cons.conbin from pg_constraint cons, pg_class tab " +
                            "where tab.relname = '" + self.Name +"' " + 
-                           "and cons.conrelid = tab.oid and contype <> 'p'")
-                DB.execute(OTQuery)
+                           "and cons.conrelid = tab.oid and contype = 'c'")
+                
+                DB.execute(CkCQuery)
                 
                 for cols in DB.fetchall():
-                    raise Exception('Unmodeled Constraints on Table ' + cols[0]);
-                
+                    self.CheckConstraint.append(self.ConstraintStruct(cols[0]))
+                    
+                OTQuery = ("Select contype from pg_constraint cons, pg_class tab " +
+                           "where tab.relname = '" + self.Name +"' " + 
+                           "and cons.conrelid = tab.oid and contype not in ('p','c')")
+                 
+                DB.execute(OTQuery)
+                 
+                for cols in DB.fetchall():
+                    raise Exception('Unmodeled Constraint on table '+cols[0])
+                 
                 for i in range(self.TableRows):
                     self.addRow()
                     
@@ -108,6 +119,9 @@ class Table:
     
     def getPKColumns(self):
         return self.PK
+    
+    def getCheckCons(self):
+        return self.CheckConstraint
     
     def addRow(self):
         RowIndex = self.getNumberOfRows()+1
@@ -165,3 +179,71 @@ class Table:
                 Rows.append(eachrow)
         
         self.Rows = Rows 
+        
+    def ConstraintStruct(self, S):
+        a = S.find('{')
+        if a == -1:
+            return ''
+        
+        S = S[(a+1):]
+        b = S.find(' ')
+        
+        token = S[:b]
+        res = ''
+        
+        if token == 'BOOLEXPR':
+            a = S.find(':boolop')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            op = S[:a]
+        
+        elif token == 'OPEXPR':
+            a = S.find(':opfuncid')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            op = S[:a]
+        
+        elif token == 'VAR':
+            a = S.find(':varattno')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            op = 'Col ' + self.NamebyAttnum[int(S[:a])][1]
+            
+        elif token == 'CONST':
+            a = S.find(':consttype')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            Type = S[:a]
+            a = S.find(':constvalue')
+            S = S[a:]
+            
+            if Type == '1042':
+                a = S.find(' ')
+                S = S[(a+1):]
+                a = S.find(' ')
+                length = int(S[:a])
+                a = S.find('[')
+                b = S.find(']')
+                value = S[(a+1):b]
+                value = value.split()
+                r = ''
+                for i in range(4,length):
+                    r = r + chr(int(value[i]))
+                op = Type + ' ' + r
+            else:
+                raise Exception('Type not handled in check constrains ' + type)
+
+        else:
+            raise Exception ('Node not handled in check constrains ' + token)
+        
+        res = self.ConstraintStruct(S)
+        res = op + '\t' + res
+        return res

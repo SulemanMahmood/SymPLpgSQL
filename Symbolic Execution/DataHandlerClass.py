@@ -1,6 +1,5 @@
 from z3 import *
 from random import randint
-from _locale import DAY_1
 
 class DataHandlerClass:
     
