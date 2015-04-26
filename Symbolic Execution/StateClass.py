@@ -168,67 +168,81 @@ class StateClass:
             if Node[0] in ['65', '67']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' == '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['144']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' != '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['147']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' > '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['66']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' > '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['150']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' >= '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['149']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' <= '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['177']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' + '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['181']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' - '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['141']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' * '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] in ['154']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' / '
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
+            
+            elif Node[0] in ['OR', 'or', 'Or']:
+                Condition = Condition + ' Or( '
                 Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition = Condition + ' , '
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
+            
+            elif Node[0] in ['AND', 'and', 'And']:
+                Condition = Condition + ' And( '
+                Condition, i = self.MakeCondition(Parts, i+1, Condition)
+                Condition = Condition + ' , '
+                Condition, i = self.MakeCondition(Parts, i, Condition)
+                return Condition + ' )', i
             
             elif Node[0] == 'Not':
                 Condition = Condition + 'Not( '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                return Condition + ' )', i+1
+                Condition, i = self.MakeCondition(Parts, i + 1, Condition)
+                return Condition + ' )', i
             
             elif Node[0] == 'FunctionCall':
                 raise Exception('Sub Procedure Call')
@@ -245,7 +259,7 @@ class StateClass:
                 Type = int(Node[0])
                 Value = Node[1];
                 Condition = Condition + self.DataHandler.ProcessConstant(Type, Value).__str__()
-            return Condition, i
+            return Condition, i+1
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
         Table = self.Current_Tables[TableName]
@@ -322,12 +336,24 @@ class StateClass:
         
         return Condition
     
+    def AddTypeConstraintsOnVariablesForTestCase(self, Condition):
+        for Name, Type in self.Types.items():
+            C1 = self.DataHandler.getVariableTypeConstraint(Type, Name);
+            if C1 != None:
+                C, i = self.MakeCondition(C1.split('\t'), 0, '')
+                Condition = Condition + self.SubstituteVars(C) + ', '
+        
+        return Condition
+        
     def getNumberOfRows(self, TableName):
         return self.Current_Tables[TableName].getNumberOfRows()
 
     def AddAllBaseConditionsForTestCase(self, BaseConstraint):
         for table in self.getTableListForTestCase():
             BaseConstraint = self.AddConstraintsForTestCase(BaseConstraint, table)
+        
+        BaseConstraint = self.AddTypeConstraintsOnVariablesForTestCase(BaseConstraint)
+        
         return BaseConstraint[:-2]
     
     def getPlanBottom(self,State_ID):
@@ -405,19 +431,19 @@ class StateClass:
         self.AdvanceState()
         Parts = Line.split('\t')
         self.State[self.Current_State_id]['Node'] = Parts[0]
-        print(Parts)
+        #print(Parts)
         # Here we interpret our instrumentation
         ######################################################################################################################
         ####################################################   IF   ##########################################################
         ######################################################################################################################
         if Parts[0] == 'IF':    
             Condition, i = self.MakeCondition(Parts,1,'')
-            print(Condition)
+            #print(Condition)
             Condition = self.SubstituteVars(Condition)
                
             self.Current_Choices.AddChoice(Condition, None)
             self.Current_Choices.AddChoice('Not('+Condition+')', None)
-            return True
+            return False
             
         ######################################################################################################################
         ###########################################  T_SeqScan & T_IndexScan  ################################################
@@ -438,7 +464,7 @@ class StateClass:
                 Condition = self.SubstituteVars(Condition)
                 NoDataCond = 'Not('+Condition+')'
 
-                print(Condition)
+                #print(Condition)
                 
                 #No Data Found
                 CompleteCondition = ''
@@ -446,7 +472,7 @@ class StateClass:
                     CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, j) + ', '
                 
                 CompleteCondition = CompleteCondition[:-2]
-                print(CompleteCondition)
+                #print(CompleteCondition)
                 
                 self.Current_Choices.AddChoice(CompleteCondition, None)
                     
@@ -461,7 +487,7 @@ class StateClass:
                             CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, k) + ', '
                     
                     CompleteCondition = CompleteCondition[:-2]
-                    print(CompleteCondition)
+                    #print(CompleteCondition)
                     InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [j], Inner = self.Current_Tables[TableName])
                     self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                 
@@ -478,7 +504,7 @@ class StateClass:
                                 CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, l) + ', '
                                 
                         CompleteCondition = CompleteCondition[:-2]
-                        print(CompleteCondition)
+                        #print(CompleteCondition)
                         InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [j,k], Inner = self.Current_Tables[TableName]) 
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                         CompleteCondition = ''
@@ -538,7 +564,7 @@ class StateClass:
             self.AddNewZ3ObjectForVariable(Target, ReturnType)
             Target = self.SubstituteVars(' '+Target+' ')
             Condition = Target + ' == ' + Expr
-            print(Condition)
+            #print(Condition)
             self.Current_Choices.AddChoice(Condition, None)
             return True
         
@@ -582,23 +608,23 @@ class StateClass:
                     
                     InnerRows = InnerResult.getNumberOfRows()
                     OuterRows = OuterResult.getNumberOfRows()
-                    print('Inner ' + InnerRows.__str__())
-                    print('Outer ' + OuterRows.__str__())
+                    #print('Inner ' + InnerRows.__str__())
+                    #print('Outer ' + OuterRows.__str__())
                     Comb = CombinationGenerator(InnerRows, OuterRows)
                     
                     #No Data Found
-                    print('No data condition')
+                    #print('No data condition')
                     CompleteCondition = ''
                     for RowPair in Comb.getAllSinglePairs():
                         C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, RowPair[0])
                         C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, RowPair[1])
                         CompleteCondition = CompleteCondition + C2 + ', '
                     CompleteCondition = CompleteCondition[:-2]
-                    print(CompleteCondition)
+                    #print(CompleteCondition)
                     self.Current_Choices.AddChoice(CompleteCondition, None)
                     
                     #One Row Found
-                    print('One Row Conditions')
+                    #print('One Row Conditions')
                     for RowPair in Comb.getAllSinglePairs():
                         CompleteCondition = ''
                         for R in Comb.getAllSinglePairs():
@@ -611,12 +637,12 @@ class StateClass:
                                 C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
                                 CompleteCondition = CompleteCondition + C2 + ', '
                         CompleteCondition = CompleteCondition[:-2]
-                        print(CompleteCondition)
+                        #print(CompleteCondition)
                         InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [RowPair], Inner = InnerResult, Outer = OuterResult)
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                     
                     #Two Rows Found
-                    print('Two Row Conditions')
+                    #print('Two Row Conditions')
                     for RowComb in Comb.getAllTwoPairCombinations():
                         CompleteCondition = ''
                         for R in Comb.getAllSinglePairs():
@@ -629,7 +655,7 @@ class StateClass:
                                 C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
                                 CompleteCondition = CompleteCondition + C2 + ', '
                         CompleteCondition = CompleteCondition[:-2]
-                        print(CompleteCondition)
+                        #print(CompleteCondition)
                         InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = RowComb, Inner = InnerResult, Outer = OuterResult)
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                 
@@ -697,10 +723,6 @@ class StateClass:
         #############################################  PLPGSQL_STMT_RETURN   #################################################
         ######################################################################################################################
         elif Parts[0] == 'PLPGSQL_STMT_RETURN':
-            ReturnType = int(Parts[1])
-            Expr, i = self.MakeCondition(Parts, 2, '')
-            Expr = self.SubstituteOldVars(' ' + Expr + ' ')
-            
             # Not doing much for retun type yet. It will be handled when we work on sub procedure calls
             
             self.Current_Choices.AddChoice('True', None)

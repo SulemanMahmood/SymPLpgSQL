@@ -26,3 +26,5 @@ for proc in DB.fetchall():
         print(insertexpr)
         DB.execute(insertexpr)
         DB.execute("commit")
+
+print("\n\nALL DONE")

@@ -3,7 +3,6 @@ from Config import TraceFile
 
 
 class Z3Solver:
-    State = {}
     
     def __init__(self, State, CaseParser):
         self.S = Solver()       # Actaul Solver Object
@@ -45,19 +44,19 @@ class Z3Solver:
                 else:
                     code = 'self.S.add('+Condition+')'
                     self.S.push()
-                    print(code)
+                    #print(code)
                     exec(code)
                     Condition = self.State.AddAllBaseConditionsForTestCase('')
                     code = 'self.S.add('+Condition+')'
                     self.S.push()
                     exec(code)
-                    print(self.S)
+                    #print(self.S)
                     broken = True
                     break
                 
             if broken == True:    
                 check = self.S.check()
-                print(check)
+                #print(check)
                 self.S.pop()
                 if check.r == 1:
                     M = self.S.model()
@@ -70,7 +69,7 @@ class Z3Solver:
         code = 'self.S.add('+BaseConstraint+')'
         self.S.push()
         exec(code)
-        print(self.S)
+        #print(self.S)
         self.S.check()
         self.S.pop()
         M = self.S.model()

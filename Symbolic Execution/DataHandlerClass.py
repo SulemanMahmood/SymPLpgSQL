@@ -9,6 +9,7 @@ class DataHandlerClass:
         self.StringIndex = 0
         
         self.BaseDate = '20150401'
+        
     
     def getZ3Object(self, Type, Name):
         if (Type >= 20 and Type <= 23 ):   # Integer type or Numeric type
@@ -20,10 +21,13 @@ class DataHandlerClass:
         elif Type == 25 :                  # Text type
             return Int(Name)
         
-        elif Type == 1700 :                 #Numeric
+        elif Type == 1042 :                # Char type
+            return Int(Name)
+        
+        elif Type == 1700 :                # Numeric
             return Real(Name)
         
-        elif Type == 1082 :                 #Date
+        elif Type == 1082 :                # Date
             return Int(Name)
         
         else:
@@ -44,6 +48,9 @@ class DataHandlerClass:
         elif Type == 25:                    # text type
             self.AddString(Value)
             return self.StringsByValue[Value]
+        
+        elif Type == 1042:                  # char type
+            return ord(Value)
 
         else:
             raise Exception('Unknown Data Type In Constant Processing ' + Type.__str__())
@@ -84,6 +91,15 @@ class DataHandlerClass:
                     value = value.__str__()
                     self.AddString(value)
                     return "'" + value + "'"
+        
+        elif Type == 1042:                    # char
+            try:
+                value = Model.evaluate(Variable)
+                value = int(value.__str__())
+            except:
+                value = randint(65,90)
+            finally:
+                return "'" + chr(value) + "'"
         
         elif Type == 1700:      #Numeric
             value = Model.evaluate(Variable)
@@ -129,7 +145,73 @@ class DataHandlerClass:
             
         else:
             raise Exception('Unknwon Data Type for Model ' + Type.__str__())
+        
+    def ProcessConstraintString(self,Type, S):
+        if Type == 1042:
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            length = int(S[:a])
+            a = S.find('[')
+            b = S.find(']')
+            value = S[(a+1):b]
+            value = value.split()
+            r = ''
+            for i in range(4,length):
+                r = r + chr(int(value[i]))
+            
+            return r
+        
+        elif Type == 23:
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            length = int(S[:a])
+            a = S.find('[')
+            b = S.find(']')
+            value = S[(a+1):b]
+            value = value.split()
+            x = 0
+            for i in range(length):
+                x = x << 8
+                x = x | int(value[i]);
+            return x.__str__()
+        
+        else:
+            raise Exception('Type not handled in check constrains ' + Type.__str__())
+
+    def AddTableConstraint(self, Type, Name):
+        if Type == 1042:
+            return ("or\t" +
+                        "or\t" + 
+                            "and\t" +
+                                "150\tCol " + Name + "\t1042 A\t" + 
+                                "149\tCol " + Name + "\t1042 Z\t" +
+                            "and\t" + 
+                                "150\tCol " + Name + "\t1042 a\t" + 
+                                "149\tCol " + Name + "\t1042 z\t" +
+                        "and\t" + 
+                            "150\tCol " + Name + "\t1042 0\t" + 
+                            "149\tCol " + Name + "\t1042 9\t")
+        else:
+            return None
     
+    def getVariableTypeConstraint(self, Type, Name):
+        if Type == 1042:
+            return ("or\t" +
+                        "or\t" + 
+                            "and\t" + 
+                                "150\tParam " + Name + "\t1042 A\t" + 
+                                "149\tParam " + Name + "\t1042 Z\t" +
+                            "and\t" + 
+                                "150\tParam " + Name + "\t1042 a\t" + 
+                                "149\tParam " + Name + "\t1042 z\t" +
+                        "and\t" + 
+                            "150\tParam " + Name + "\t1042 0\t" + 
+                            "149\tParam " + Name + "\t1042 1\t")
+    
+        else:
+            return None
         
     def AddString(self,Value):
         if not self.StringsByValue.__contains__(Value):

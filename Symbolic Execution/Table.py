@@ -62,6 +62,11 @@ class Table:
                 for cols in DB.fetchall():
                     self.CheckConstraint.append(self.ConstraintStruct(cols[0]))
                     
+                for k, v in self.ColumsByIndex.items():
+                    C = self.DataHandler.AddTableConstraint(v[0], v[1])
+                    if C != None:
+                        self.CheckConstraint.append(C)
+                
                 OTQuery = ("Select contype from pg_constraint cons, pg_class tab " +
                            "where tab.relname = '" + self.Name +"' " + 
                            "and cons.conrelid = tab.oid and contype not in ('p','c')")
@@ -221,26 +226,14 @@ class Table:
             a = S.find(' ')
             S = S[(a+1):]
             a = S.find(' ')
-            Type = S[:a]
+            Type = int(S[:a])
             a = S.find(':constvalue')
             S = S[a:]
+            op = Type.__str__() + ' ' + self.DataHandler.ProcessConstraintString(Type, S)
             
-            if Type == '1042':
-                a = S.find(' ')
-                S = S[(a+1):]
-                a = S.find(' ')
-                length = int(S[:a])
-                a = S.find('[')
-                b = S.find(']')
-                value = S[(a+1):b]
-                value = value.split()
-                r = ''
-                for i in range(4,length):
-                    r = r + chr(int(value[i]))
-                op = Type + ' ' + r
-            else:
-                raise Exception('Type not handled in check constrains ' + type)
-
+        elif token == 'FUNCEXPR':
+            raise Exception ('Proceudure call in check constraint: Not Supported for now')
+        
         else:
             raise Exception ('Node not handled in check constrains ' + token)
         
