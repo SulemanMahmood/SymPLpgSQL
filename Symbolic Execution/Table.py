@@ -22,7 +22,8 @@ class Table:
                 "from pg_attribute cols, pg_class tab " +
                 "where tab.oid = cols.attrelid " +
                 "and tab.relname = '" + self.Name + "' " +
-                "and attnum > 0 " + 
+                "and attnum > 0 " +
+                "and cols.atttypid <> 0" 
                 "order by attnum asc")
                 
                 DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
@@ -87,7 +88,13 @@ class Table:
             
         else:
             # It is a copy. We will set the details in copy function
-            pass    
+            pass
+        
+    def isPKdefined(self):
+        if self.PK.__len__() == 0:
+            return False
+        else:
+            return True    
                 
     def getRows(self):
         return self.Rows
@@ -153,6 +160,7 @@ class Table:
         T.ColumsByIndex = self.ColumsByIndex
         T.NamebyAttnum = self.NamebyAttnum
         T.PK = self.PK
+        T.CheckConstraint = self.CheckConstraint
         
         for eachrow in self.Rows:
             row = []

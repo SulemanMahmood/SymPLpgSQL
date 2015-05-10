@@ -165,7 +165,7 @@ class StateClass:
     def MakeCondition(self,Parts,i,Condition):
         Node = Parts[i].split(' ')
         if len(Node) == 1:
-            if Node[0] in ['65', '67']:
+            if Node[0] in ['65', '67', '1048']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' == '
                 Condition, i = self.MakeCondition(Parts, i, Condition)
@@ -297,19 +297,21 @@ class StateClass:
         
     def AddConstraintsForTestCase(self, Condition, TableName):
         #Primary Key Constraint
+        T = self.getTable(TableName)
         Rows = self.getNumberOfRowsForTestCase(TableName)
-        for i in range(Rows):
-            for j in range(i+1,Rows):
-                C = 'Not(And('
-                for k in self.getPKColumnsForTestCase(TableName):
-                    C = C + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
-                C = C[:-2]
-                C = C + ')), '    
-                Condition = Condition + C
+        if T.isPKdefined():
+            for i in range(Rows):
+                for j in range(i+1,Rows):
+                    C = 'Not(And('
+                    for k in self.getPKColumnsForTestCase(TableName):
+                        C = C + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
+                    C = C[:-2]
+                    C = C + ')), '    
+                    Condition = Condition + C
                 
         #Check Constraints
         for eachCon in self.getCheckConsForTestCase(TableName):
-            C = self.MakeCondition(eachCon.split('\t'), 0, '')
+            C, _ = self.MakeCondition(eachCon.split('\t'), 0, '')
             for i in range(Rows):
                 Condition = Condition + self.SubstituteTableRowForTestCase(C, TableName, i) + ', '
                 
@@ -378,38 +380,43 @@ class StateClass:
         for row in range(len(TableRows)):
             for Col in range(len(ColList)):
                 Parts = ColList[Col].split(' ')
-                JoinParts = Parts[1].split('.')
                 
-                if Parts[0] == 'Col':
-                    if Parts[1] == 'ctid':
-                        InnerRow = Rows[row]
-                        TableRows[row].append(InnerRow)
+                if len(Parts) == 2:
+                    if Parts[0] == 'Col':
+                        JoinParts = Parts[1].split('.')
                         
-                    elif len(JoinParts) == 2:
-                        JoinTable = JoinParts[0]
-                        ColIndex = int(JoinParts[1])
-                        InnerRow = Rows[row][0]
-                        OuterRow = Rows[row][1]
+                        if Parts[1] == 'ctid':
+                            InnerRow = Rows[row]
+                            TableRows[row].append(InnerRow)
+                            
+                        elif len(JoinParts) == 2:
+                            JoinTable = JoinParts[0]
+                            ColIndex = int(JoinParts[1])
+                            InnerRow = Rows[row][0]
+                            OuterRow = Rows[row][1]
+                            
+                            if JoinTable == 'INNER':
+                                TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
+                            elif JoinTable == 'OUTER':
+                                TableRows[row].append(Outer.getZ3ObjectForTableElement(ColIndex, OuterRow)) 
                         
-                        if JoinTable == 'INNER':
+                        else:   # more conditions may be added later but right now else is a single table col supplied in Inner
+                            ColIndex = Inner.getColumnIndexFromName(Parts[1])
+                            InnerRow = Rows[row]
                             TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
-                        elif JoinTable == 'OUTER':
-                            TableRows[row].append(Outer.getZ3ObjectForTableElement(ColIndex, OuterRow)) 
+                            
+                    elif Parts[0] == 'Param':
+                        if self.Current_Variables.__contains__(Parts[1]):
+                            TableRows[row].append(self.Current_Variables[Parts[1]])
                     
-                    else:   # more conditions may be added later but right now else is a single table col supplied in Inner
-                        ColIndex = Inner.getColumnIndexFromName(Parts[1])
-                        InnerRow = Rows[row]
-                        TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
-                        
-                elif Parts[0] == 'Param':
-                    if self.Current_Variables.__contains__(Parts[1]):
-                        TableRows[row].append(self.Current_Variables[Parts[1]])
+                    else:
+                        Type = int(Parts[0])
+                        Value = Parts[1]
+                    
+                        TableRows[row].append(self.DataHandler.ProcessConstant(Type, Value))
                 
                 else:
-                    Type = int(Parts[0])
-                    Value = Parts[1]
-                
-                    TableRows[row].append(self.DataHandler.ProcessConstant(Type, Value))
+                    raise Exception("Operation in TargetList: " + Parts[0])
                     
         T.setRows(TableRows)
         return T;
@@ -431,14 +438,14 @@ class StateClass:
         self.AdvanceState()
         Parts = Line.split('\t')
         self.State[self.Current_State_id]['Node'] = Parts[0]
-        #print(Parts)
+        print(Parts)
         # Here we interpret our instrumentation
         ######################################################################################################################
         ####################################################   IF   ##########################################################
         ######################################################################################################################
         if Parts[0] == 'IF':    
             Condition, i = self.MakeCondition(Parts,1,'')
-            #print(Condition)
+            print(Condition)
             Condition = self.SubstituteVars(Condition)
                
             self.Current_Choices.AddChoice(Condition, None)
@@ -464,7 +471,7 @@ class StateClass:
                 Condition = self.SubstituteVars(Condition)
                 NoDataCond = 'Not('+Condition+')'
 
-                #print(Condition)
+                print(Condition)
                 
                 #No Data Found
                 CompleteCondition = ''
@@ -472,7 +479,7 @@ class StateClass:
                     CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, j) + ', '
                 
                 CompleteCondition = CompleteCondition[:-2]
-                #print(CompleteCondition)
+                print(CompleteCondition)
                 
                 self.Current_Choices.AddChoice(CompleteCondition, None)
                     
@@ -487,7 +494,7 @@ class StateClass:
                             CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, k) + ', '
                     
                     CompleteCondition = CompleteCondition[:-2]
-                    #print(CompleteCondition)
+                    print(CompleteCondition)
                     InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [j], Inner = self.Current_Tables[TableName])
                     self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                 
@@ -504,7 +511,7 @@ class StateClass:
                                 CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, l) + ', '
                                 
                         CompleteCondition = CompleteCondition[:-2]
-                        #print(CompleteCondition)
+                        print(CompleteCondition)
                         InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [j,k], Inner = self.Current_Tables[TableName]) 
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                         CompleteCondition = ''
@@ -564,7 +571,7 @@ class StateClass:
             self.AddNewZ3ObjectForVariable(Target, ReturnType)
             Target = self.SubstituteVars(' '+Target+' ')
             Condition = Target + ' == ' + Expr
-            #print(Condition)
+            print(Condition)
             self.Current_Choices.AddChoice(Condition, None)
             return True
         
@@ -608,23 +615,23 @@ class StateClass:
                     
                     InnerRows = InnerResult.getNumberOfRows()
                     OuterRows = OuterResult.getNumberOfRows()
-                    #print('Inner ' + InnerRows.__str__())
-                    #print('Outer ' + OuterRows.__str__())
+                    print('Inner ' + InnerRows.__str__())
+                    print('Outer ' + OuterRows.__str__())
                     Comb = CombinationGenerator(InnerRows, OuterRows)
                     
                     #No Data Found
-                    #print('No data condition')
+                    print('No data condition')
                     CompleteCondition = ''
                     for RowPair in Comb.getAllSinglePairs():
                         C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, RowPair[0])
                         C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, RowPair[1])
                         CompleteCondition = CompleteCondition + C2 + ', '
                     CompleteCondition = CompleteCondition[:-2]
-                    #print(CompleteCondition)
+                    print(CompleteCondition)
                     self.Current_Choices.AddChoice(CompleteCondition, None)
                     
                     #One Row Found
-                    #print('One Row Conditions')
+                    print('One Row Conditions')
                     for RowPair in Comb.getAllSinglePairs():
                         CompleteCondition = ''
                         for R in Comb.getAllSinglePairs():
@@ -637,12 +644,12 @@ class StateClass:
                                 C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
                                 CompleteCondition = CompleteCondition + C2 + ', '
                         CompleteCondition = CompleteCondition[:-2]
-                        #print(CompleteCondition)
+                        print(CompleteCondition)
                         InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = [RowPair], Inner = InnerResult, Outer = OuterResult)
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                     
                     #Two Rows Found
-                    #print('Two Row Conditions')
+                    print('Two Row Conditions')
                     for RowComb in Comb.getAllTwoPairCombinations():
                         CompleteCondition = ''
                         for R in Comb.getAllSinglePairs():
@@ -655,7 +662,7 @@ class StateClass:
                                 C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
                                 CompleteCondition = CompleteCondition + C2 + ', '
                         CompleteCondition = CompleteCondition[:-2]
-                        #print(CompleteCondition)
+                        print(CompleteCondition)
                         InternalTable = self.ProcessTargetList(ColList = ColumnList, Rows = RowComb, Inner = InnerResult, Outer = OuterResult)
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                 

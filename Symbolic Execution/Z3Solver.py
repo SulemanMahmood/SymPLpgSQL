@@ -44,20 +44,20 @@ class Z3Solver:
                 else:
                     code = 'self.S.add('+Condition+')'
                     self.S.push()
-                    #print(code)
+                    print(code)
                     exec(code)
                     Condition = self.State.AddAllBaseConditionsForTestCase('')
                     code = 'self.S.add('+Condition+')'
-                    self.S.push()
+                    self.S.push()   # establishing save point before adding base contraints
                     exec(code)
-                    #print(self.S)
+                    print(self.S)
                     broken = True
                     break
                 
             if broken == True:    
                 check = self.S.check()
-                #print(check)
-                self.S.pop()
+                print(check)
+                self.S.pop()    #poping out base constraints
                 if check.r == 1:
                     M = self.S.model()
                     return self.CaseParser.getCase(M, self.State)
@@ -69,7 +69,7 @@ class Z3Solver:
         code = 'self.S.add('+BaseConstraint+')'
         self.S.push()
         exec(code)
-        #print(self.S)
+        print(self.S)
         self.S.check()
         self.S.pop()
         M = self.S.model()
