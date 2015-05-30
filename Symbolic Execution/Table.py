@@ -3,7 +3,7 @@ from Config import *
 import psycopg2
 
 class Table:
-    TableRows = 3
+    TableRows = 2
     
     def __init__(self, Name, DataHandler, IsADBTable = True, IsNotCopy = True):
         self.Name = Name            # Any change here should go to copy functions as well

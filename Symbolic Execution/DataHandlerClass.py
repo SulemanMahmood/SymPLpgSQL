@@ -7,6 +7,7 @@ class DataHandlerClass:
         self.StringsByIndex  = {}
         self.StringsByValue  = {}
         self.StringIndex = 0
+        self.NullValue = -101
         
         self.BaseDate = '20150401'
         
@@ -63,7 +64,10 @@ class DataHandlerClass:
             except:
                 value = randint(0,10)
             finally:
-                return value.__str__()
+                if value == self.NullValue:
+                    return 'NULL'
+                else: 
+                    return value.__str__()
         
         elif Type == 16:                     # Boolean
             value = Model.evaluate(Variable)
@@ -85,7 +89,9 @@ class DataHandlerClass:
             except:
                 value = randint(0,10)
             finally:
-                if self.StringsByIndex.__contains__(value):
+                if value == self.NullValue:
+                    return 'NULL'
+                elif self.StringsByIndex.__contains__(value):
                     return "'" + self.StringsByIndex[value] + "'"
                 else:
                     value = value.__str__()
@@ -99,19 +105,26 @@ class DataHandlerClass:
             except:
                 value = randint(65,90)
             finally:
-                return "'" + chr(value) + "'"
+                if value == self.NullValue:
+                    return 'NULL'
+                else:
+                    return "'" + chr(value) + "'"
         
         elif Type == 1700:      #Numeric
             value = Model.evaluate(Variable)
             if isinstance(value, RatNumRef):
                 ValParts = value.__str__().split('/')
                 if (ValParts.__len__() == 1):
-                    return ValParts[0];
+                    if value == self.NullValue:
+                        return 'NULL'
+                    else:
+                        return ValParts[0];
                 else:
                     numerator = ValParts[0] + '.0'
                     denominator = ValParts[1]
                     exec('float = '+ numerator + ' / ' + denominator)
                     return float.__str__()
+            
             elif isinstance(value, ArithRef):
                 return randint(0,10).__str__()
             else:
@@ -124,24 +137,27 @@ class DataHandlerClass:
             except:
                 value = randint(0,10)
             finally:
-                year = int(self.BaseDate[:4])
-                month = int(self.BaseDate[4:][:2])
-                day = int(self.BaseDate[-2:])
-                
-                year, month, day = self.AddDate(year, month, day, value)
-                
-                year = year.__str__()
-                month = month.__str__()
-                day = day.__str__()
-                
-                if len(day) < 2:
-                    day = '0' + day
+                if value == self.NullValue:
+                    return 'NULL'
+                else:
+                    year = int(self.BaseDate[:4])
+                    month = int(self.BaseDate[4:][:2])
+                    day = int(self.BaseDate[-2:])
                     
-                if len(month) < 2:
-                    month = '0' + month 
-                
-                value = year.__str__() + month.__str__() + day.__str__()
-                return "'" + value + "'"
+                    year, month, day = self.AddDate(year, month, day, value)
+                    
+                    year = year.__str__()
+                    month = month.__str__()
+                    day = day.__str__()
+                    
+                    if len(day) < 2:
+                        day = '0' + day
+                        
+                    if len(month) < 2:
+                        month = '0' + month 
+                    
+                    value = year.__str__() + month.__str__() + day.__str__()
+                    return "'" + value + "'"
             
         else:
             raise Exception('Unknwon Data Type for Model ' + Type.__str__())
