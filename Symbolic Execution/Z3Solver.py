@@ -9,6 +9,7 @@ class Z3Solver:
         self.DepthChoiceOptions = {}
         self.State = State
         self.CaseParser = CaseParser
+        self.checkcount = 0;
                      
     def Check(self):        
         Trace = open(TraceFile, 'r')
@@ -54,7 +55,8 @@ class Z3Solver:
                     broken = True
                     break
                 
-            if broken == True:    
+            if broken == True:
+                self.checkcount = self.checkcount + 1   #just for fun    
                 check = self.S.check()
                 #print(check)
                 self.S.pop()    #poping out base constraints
@@ -85,4 +87,7 @@ class Z3Solver:
             return True
         else:
             return False
+        
+    def getCheckCount(self):
+        return self.checkcount
         

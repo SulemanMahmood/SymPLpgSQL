@@ -8,7 +8,7 @@ DB = DBConn.cursor()
 DB.execute("Truncate Table Exception_Log")
 DB.execute("Truncate Table Test_Case_Exception_Log")
 DB.execute("commit")
-DB.execute("Select proname, proargtypes, prorettype from pg_proc p where p.oid not in (select t.tgfoid from pg_trigger t) and prolang = 11899;")
+DB.execute("Select proname, proargtypes, prorettype from pg_proc p where prolang = 11899;")
 
     
 for proc in DB.fetchall():
@@ -17,7 +17,7 @@ for proc in DB.fetchall():
     try:
         Executor = SymbolicExecutor(Procedure)
         Executor.run()
-        DB.execute("Insert into Exception_Log (proname, status) values ('" + Procedure.getName() +"', 'Completed')")
+        DB.execute("Insert into Exception_Log (proname, status, solver_queries, testcases) values ('" + Procedure.getName() +"', 'Completed' , " + Executor.getZ3CheckCount().__str__() +", " + Executor.CaseParser.CaseNo.__str__() +")")
         DB.execute("commit")
     except Exception as e:
         Error = (e.args).__str__()

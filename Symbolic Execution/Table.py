@@ -12,13 +12,13 @@ class Table:
         self.ColumsByIndex = {}
         self.NamebyAttnum = {}      
         self.Rows = []
-        self.PK = []
+        self.UniqueConstraint = []
         self.CheckConstraint = []
         self.IsADBTable = IsADBTable
         
         if IsNotCopy:
             if self.IsADBTable:
-                ColQuery = ("Select cols.attname, cols.atttypid, cols.attnum " +
+                ColQuery = ("Select cols.attname, cols.atttypid, cols.attnum, cols.attnotnull " +
                 "from pg_attribute cols, pg_class tab " +
                 "where tab.oid = cols.attrelid " +
                 "and tab.relname = '" + self.Name + "' " +
@@ -35,6 +35,7 @@ class Table:
                     Name = col[0]
                     Type = col[1]
                     AttNum = col[2]
+                    NotNull = col[3]
                     
                     if not (self.ColumnsByName.__contains__(Name)):
                         self.ColumnsByName[Name] = [Type, index]
@@ -42,8 +43,22 @@ class Table:
                         self.ColumsByIndex[index] = [Type, Name]
                     if not (self.NamebyAttnum.__contains__(AttNum)):
                         self.NamebyAttnum[AttNum] = [index, Name]
+                        
+                    if NotNull:
+                        self.CheckConstraint.append('Not\tT_NullTest\tCol ' + Name+'\t')
                     
                     index = index + 1
+                
+                UkQuery = ("Select cons.conkey from pg_constraint cons, pg_class tab " +
+                           "where tab.relname = '" + self.Name +"' " + 
+                           "and cons.conrelid = tab.oid and contype = 'u'")
+                DB.execute(UkQuery)
+
+                for cons in DB.fetchall():
+                    constraint = []
+                    for AttNum in cons[0]:
+                        constraint.append(self.NamebyAttnum[AttNum][0])
+                    self.UniqueConstraint.append(constraint)    
                 
                 PKQuery = ("Select cons.conkey from pg_constraint cons, pg_class tab " +
                            "where tab.relname = '" + self.Name +"' " + 
@@ -51,8 +66,11 @@ class Table:
                 DB.execute(PKQuery)
                 
                 for cols in DB.fetchall():
+                    constraint = []
                     for AttNum in cols[0]:
-                        self.PK.append(self.NamebyAttnum[AttNum][0])
+                        constraint.append(self.NamebyAttnum[AttNum][0])
+                        self.CheckConstraint.append('Not\tT_NullTest\tCol ' + self.NamebyAttnum[AttNum][1]+'\t')
+                    self.UniqueConstraint.append(constraint)
                 
                 CkCQuery = ("Select cons.conbin from pg_constraint cons, pg_class tab " +
                            "where tab.relname = '" + self.Name +"' " + 
@@ -63,21 +81,21 @@ class Table:
                 for cols in DB.fetchall():
                     self.CheckConstraint.append(self.ConstraintStruct(cols[0]))
                     
-                for k, v in self.ColumsByIndex.items():
+                for _, v in self.ColumsByIndex.items():
                     C = self.DataHandler.AddTableConstraint(v[0], v[1])
                     if C != None:
                         self.CheckConstraint.append(C)
                 
                 OTQuery = ("Select contype from pg_constraint cons, pg_class tab " +
                            "where tab.relname = '" + self.Name +"' " + 
-                           "and cons.conrelid = tab.oid and contype not in ('p','c')")
+                           "and cons.conrelid = tab.oid and contype not in ('p','c', 'u')")
                  
                 DB.execute(OTQuery)
                  
                 for cols in DB.fetchall():
                     raise Exception('Unmodeled Constraint on table '+cols[0])
                  
-                for i in range(self.TableRows):
+                for _ in range(self.TableRows):
                     self.addRow()
                     
                 DB.close
@@ -88,13 +106,7 @@ class Table:
             
         else:
             # It is a copy. We will set the details in copy function
-            pass
-        
-    def isPKdefined(self):
-        if self.PK.__len__() == 0:
-            return False
-        else:
-            return True    
+            pass 
                 
     def getRows(self):
         return self.Rows
@@ -129,8 +141,8 @@ class Table:
     def getNumberOfCols(self):
         return len(self.Rows[0])
     
-    def getPKColumns(self):
-        return self.PK
+    def getUniqueConstaints(self):
+        return self.UniqueConstraint
     
     def getCheckCons(self):
         return self.CheckConstraint
@@ -159,7 +171,7 @@ class Table:
         T.ColumnsByName = self.ColumnsByName
         T.ColumsByIndex = self.ColumsByIndex
         T.NamebyAttnum = self.NamebyAttnum
-        T.PK = self.PK
+        T.UniqueConstraint = self.UniqueConstraint
         T.CheckConstraint = self.CheckConstraint
         
         for eachrow in self.Rows:

@@ -1,4 +1,3 @@
-from z3 import Int
 from Table import Table
 from ChoicesClass import ChoicesClass
 from CombinationGenerater import CombinationGenerator
@@ -82,8 +81,8 @@ class StateClass:
     def getTraceLinesToDiscard(self):
         return self.Current_State_id
         
-    def getPKColumnsForTestCase(self,TableName):
-        return self.State[0]['Tables'][TableName].getPKColumns()
+    def getUniqueConstaintsForTestCase(self,TableName):
+        return self.State[0]['Tables'][TableName].getUniqueConstaints()
     
     def getCheckConsForTestCase(self,TableName):
         return self.State[0]['Tables'][TableName].getCheckCons()
@@ -128,7 +127,7 @@ class StateClass:
         self.Set_Current_State()
         
     def SubstituteVars(self,Condition):            
-        for k, v in self.Current_Variables.items():
+        for k, _ in self.Current_Variables.items():
             Condition = Condition.replace(' '+k+' ', " self.State.getZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace('('+k+' ', "(self.State.getZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace(' '+k+')', " self.State.getZ3ObjectFromName('"+k+"'))")
@@ -136,7 +135,7 @@ class StateClass:
         return Condition
             
     def SubstituteOldVars(self,Condition):
-        for k, v in self.Current_Variables.items():
+        for k, _ in self.Current_Variables.items():
             Condition = Condition.replace(' '+k+' ', " self.State.getOldZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace('('+k+' ', "(self.State.getOldZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace(' '+k+')', " self.State.getOldZ3ObjectFromName('"+k+"'))")
@@ -296,14 +295,13 @@ class StateClass:
         return Condition
         
     def AddConstraintsForTestCase(self, Condition, TableName):
-        #Primary Key Constraint
-        T = self.getTable(TableName)
+        #Unique Constraints        also contains uniquness part of primary key
         Rows = self.getNumberOfRowsForTestCase(TableName)
-        if T.isPKdefined():
+        for eachcon in self.getUniqueConstaintsForTestCase(TableName):
             for i in range(Rows):
                 for j in range(i+1,Rows):
                     C = 'Not(And('
-                    for k in self.getPKColumnsForTestCase(TableName):
+                    for k in eachcon:
                         C = C + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
                     C = C[:-2]
                     C = C + ')), '    
@@ -318,31 +316,31 @@ class StateClass:
         return Condition
     
     def AddConstraints(self, Condition, TableName):
-        #Primary Key Constraint
+        #Unique Constraints        also contains uniquness part of primary key
         Rows = self.getNumberOfRows(TableName)
-        for i in range(Rows):
-            for j in range(i+1,Rows):
-                C = 'Not(And('
-                for k in self.getPKColumnsForTestCase(TableName):
-                    C = C + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
-                C = C[:-2]
-                C = C + ')), '    
-                Condition = Condition + C
+        for eachcon in self.getUniqueConstaintsForTestCase(TableName):
+            for i in range(Rows):
+                for j in range(i+1,Rows):
+                    C = 'Not(And('
+                    for k in eachcon:
+                        C = C + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+k.__str__()+", "+j.__str__()+")" + ", "
+                    C = C[:-2]
+                    C = C + ')), '    
+                    Condition = Condition + C
         
         #Check Constraints
         for eachCon in self.getCheckConsForTestCase(TableName):
-            C = self.MakeCondition(eachCon.split('\t'), 0, '')
+            C, _ = self.MakeCondition(eachCon.split('\t'), 0, '')
             for i in range(Rows):
                 Condition = Condition + self.SubstituteTableRow(C, TableName, i) + ', '
                         
-        
         return Condition
     
     def AddTypeConstraintsOnVariablesForTestCase(self, Condition):
         for Name, Type in self.Types.items():
             C1 = self.DataHandler.getVariableTypeConstraint(Type, Name);
             if C1 != None:
-                C, i = self.MakeCondition(C1.split('\t'), 0, '')
+                C, _ = self.MakeCondition(C1.split('\t'), 0, '')
                 Condition = Condition + self.SubstituteVars(C) + ', '
         
         return Condition
@@ -374,7 +372,7 @@ class StateClass:
         if Rows == None:
             TableRows.append([])
         else:
-            for i in range(len(Rows)):
+            for _ in range(len(Rows)):
                 TableRows.append([])
                 
         T = Table('Result' + self.Current_State_id.__str__(),self.DataHandler, False, False);

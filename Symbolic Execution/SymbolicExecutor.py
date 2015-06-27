@@ -15,13 +15,13 @@ class SymbolicExecutor:
         self.DataHandler = DataHandlerClass()
         self.CaseParser = TestCaseParser(self.Procedure, self.DataHandler)
         State = StateClass(self.Procedure, self.DataHandler)
-        Z3 = Z3Solver(State, self.CaseParser)
-        Data, Test = Z3.get_first_test_case()
+        self.Z3 = Z3Solver(State, self.CaseParser)
+        Data, Test = self.Z3.get_first_test_case()
         
         while True:
             self.ExecuteTest(Data)
             self.ExecuteTest(Test)
-            Data, Test = Z3.Check()
+            Data, Test = self.Z3.Check()
             if Test == None:
                 break;
             
@@ -64,3 +64,5 @@ class SymbolicExecutor:
         TO.close
         T.close
         
+    def getZ3CheckCount(self):
+        return self.Z3.getCheckCount()
