@@ -32,11 +32,14 @@ class SymbolicExecutor:
     def ExecuteTest(self, T):       
         DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
         DB = DBConn.cursor()
-        #print(T)
+        PrintLog(T)
         try:
             self.CleanUp()
             DB.execute(open(T,'r').read())
             self.SetupLog()
+            Log = "Delete from Test_Case_Exception_Log where proname = '" + self.Procedure.getName() +"' and CaseFileName = '"+T+"' "
+            DB.execute(Log)
+            DB.execute("commit") 
         except Exception as SqlException:
             self.SetupLog()
             DB.execute('rollback');
@@ -46,14 +49,16 @@ class SymbolicExecutor:
             Error = Error[2:-3]
             Error = Error.replace('\'','-')
             Log = "Insert into Test_Case_Exception_Log (proname, CaseFileName, Error) values ('" + self.Procedure.getName() +"', '"+T+"', '" +Error+ "')"
-            #print (Log)
+            PrintLog (Log)
+            DB.execute("rollback")
             try:
-                DB.execute("rollback")
                 DB.execute(Log)
-                DB.execute("commit")
             except Exception as e:
-                #print("failed:  " + (e.args).__str__())
-                pass
+                PrintLog("failed:  " + (e.args).__str__())
+                Log = "Update Test_Case_Exception_Log  set Error = '" +Error+ "' where proname = '" + self.Procedure.getName() +"' and CaseFileName = '"+T+"' "
+                DB.execute(Log)
+            finally:
+                DB.execute("commit")
         DB.close
         DBConn.close
     

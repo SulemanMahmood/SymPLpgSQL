@@ -14,6 +14,7 @@ class Table:
         self.Rows = []
         self.UniqueConstraint = []
         self.CheckConstraint = []
+        self.FKConstraint = []
         self.IsADBTable = IsADBTable
         
         if IsNotCopy:
@@ -85,10 +86,24 @@ class Table:
                     C = self.DataHandler.AddTableConstraint(v[0], v[1])
                     if C != None:
                         self.CheckConstraint.append(C)
+                        
+                FKQuery = ("Select cons.conkey, tab2.relname, cons.confkey " +
+                           "from pg_constraint cons, pg_class tab, pg_class tab2 " + 
+                           "where cons.conrelid = tab.oid and contype = 'f' " + 
+                           "and tab.relname = '" + self.Name +"' and cons.confrelid = tab2.oid" )
+                
+                DB.execute(FKQuery)
+                
+                for cons in DB.fetchall():
+                    Fk = {} 
+                    Fk['Column'] = cons[0][0]
+                    Fk['ForeignTable'] = cons[1]
+                    Fk['ForeignColumn'] = cons[2][0]
+                    self.FKConstraint.append(Fk)
                 
                 OTQuery = ("Select contype from pg_constraint cons, pg_class tab " +
                            "where tab.relname = '" + self.Name +"' " + 
-                           "and cons.conrelid = tab.oid and contype not in ('p','c', 'u')")
+                           "and cons.conrelid = tab.oid and contype not in ('p','c','u','f')")
                  
                 DB.execute(OTQuery)
                  
@@ -113,6 +128,12 @@ class Table:
         
     def getColumnIndexFromName(self, Name):
         return (self.ColumnsByName[Name])[1]
+
+    def getColumnIndexFromAttnum(self, FK):
+        return self.NamebyAttnum[FK['Column']][0]   # 0: Index    1: Name
+    
+    def getForeignColumnIndexFromAttnum(self,FK):
+        return self.NamebyAttnum[FK['ForeignColumn']][0]   # 0: Index    1: Name
     
     def getZ3ObjectForTableElement(self,ColIndex, RowNum):
         return self.Rows[RowNum][ColIndex]
@@ -147,6 +168,18 @@ class Table:
     def getCheckCons(self):
         return self.CheckConstraint
     
+    def getFKeyCons(self):
+        return self.FKConstraint
+    
+    def getForeignTables(self):
+        TableList = []
+        for FK in self.FKConstraint:
+            TableList.append(FK['ForeignTable'])
+        return TableList
+    
+    def getForeignTableName(self, FK):
+        return FK['ForeignTable']
+    
     def addRow(self):
         RowIndex = self.getNumberOfRows()+1
         row = []
@@ -173,6 +206,7 @@ class Table:
         T.NamebyAttnum = self.NamebyAttnum
         T.UniqueConstraint = self.UniqueConstraint
         T.CheckConstraint = self.CheckConstraint
+        T.FKConstraint = self.FKConstraint
         
         for eachrow in self.Rows:
             row = []

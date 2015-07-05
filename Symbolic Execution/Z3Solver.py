@@ -1,5 +1,5 @@
 from z3 import *
-from Config import TraceFile
+from Config import *
 
 
 class Z3Solver:
@@ -14,7 +14,7 @@ class Z3Solver:
     def Check(self):        
         Trace = open(TraceFile, 'r')
         
-        for i in range(self.State.getTraceLinesToDiscard()):   # Discard lines when we are at base depth
+        for _ in range(self.State.getTraceLinesToDiscard()):   # Discard lines when we are at base depth
             Trace.readline()
         
         Line = Trace.readline()
@@ -45,20 +45,20 @@ class Z3Solver:
                 else:
                     code = 'self.S.add('+Condition+')'
                     self.S.push()
-                    #print(code)
+                    PrintLog(code)
                     exec(code)
                     Condition = self.State.AddAllBaseConditionsForTestCase('')
                     code = 'self.S.add('+Condition+')'
                     self.S.push()   # establishing save point before adding base contraints
                     exec(code)
-                    #print(self.S)
+                    PrintLog(self.S)
                     broken = True
                     break
                 
             if broken == True:
                 self.checkcount = self.checkcount + 1   #just for fun    
                 check = self.S.check()
-                #print(check)
+                PrintLog(check)
                 self.S.pop()    #poping out base constraints
                 if check.r == 1:
                     M = self.S.model()
@@ -71,7 +71,7 @@ class Z3Solver:
         code = 'self.S.add('+BaseConstraint+')'
         self.S.push()
         exec(code)
-        #print(self.S)
+        PrintLog(self.S)
         self.S.check()
         self.S.pop()
         M = self.S.model()
@@ -80,7 +80,7 @@ class Z3Solver:
     def ProcessLine(self, Line):
         ProcessFurther = self.State.ProcessLine(Line)
         if ProcessFurther:
-            Condition, StateAdvanced = self.State.NextChoice()
+            Condition, _ = self.State.NextChoice()
             code = 'self.S.add('+Condition+')'
             self.S.push()
             exec(code)

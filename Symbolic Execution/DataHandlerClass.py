@@ -1,12 +1,12 @@
 from z3 import *
 from random import randint
+from reportlab.lib.validators import isString, isInt
 
 class DataHandlerClass:
     
     def __init__(self):
         self.StringsByIndex  = {}
         self.StringsByValue  = {}
-        self.StringIndex = 0
         self.NullValue = -101
         
         self.BaseDate = '20150401'
@@ -19,7 +19,7 @@ class DataHandlerClass:
         elif Type == 16 :                  # Boolean type
             return Bool(Name)
         
-        elif Type == 25 :                  # Text type
+        elif Type in [25, 1043] :                  # Text type
             return Int(Name)
         
         elif Type == 1042 :                # Char type
@@ -46,7 +46,7 @@ class DataHandlerClass:
             else:
                 raise Exception('Invalid Value for Boolean type')
 
-        elif Type == 25:                    # text type
+        elif Type in [25, 1043]:                    # text type
             self.AddString(Value)
             return self.StringsByValue[Value]
         
@@ -82,7 +82,7 @@ class DataHandlerClass:
                 else:
                     return 'False'
             
-        elif Type == 25:                    # String / text
+        elif Type in [25, 1043]:                    # String / text
             try:
                 value = Model.evaluate(Variable)
                 value = int(value.__str__())
@@ -91,12 +91,9 @@ class DataHandlerClass:
             finally:
                 if value == self.NullValue:
                     return 'NULL'
-                elif self.StringsByIndex.__contains__(value):
-                    return "'" + self.StringsByIndex[value] + "'"
                 else:
-                    value = value.__str__()
                     self.AddString(value)
-                    return "'" + value + "'"
+                    return "'" + self.StringsByIndex[value] + "'"
         
         elif Type == 1042:                    # char
             try:
@@ -115,7 +112,7 @@ class DataHandlerClass:
             if isinstance(value, RatNumRef):
                 ValParts = value.__str__().split('/')
                 if (ValParts.__len__() == 1):
-                    if value == self.NullValue:
+                    if int(ValParts[0]) == self.NullValue:
                         return 'NULL'
                     else:
                         return ValParts[0];
@@ -230,10 +227,31 @@ class DataHandlerClass:
             return None
         
     def AddString(self,Value):
-        if not self.StringsByValue.__contains__(Value):
-            self.StringIndex = self.StringIndex + 1
-            self.StringsByIndex[self.StringIndex] = Value
-            self.StringsByValue[Value] = self.StringIndex
+        if isString(Value):
+            if not self.StringsByValue.__contains__(Value):
+                Index = self.GenerateNewIndex()
+                self.StringsByIndex[Index] = Value
+                self.StringsByValue[Value] = Index
+            return
+         
+        if isInt(Value):
+            if not self.StringsByIndex.__contains__(Value):
+                NewString = self.GenerateNewString()
+                self.StringsByIndex[Value] = NewString
+                self.StringsByValue[NewString] = Value
+            return
+            
+    def GenerateNewString(self):
+        i = 0;
+        while self.StringsByValue.__contains__(i.__str__()):
+            i = i + 1
+        return i.__str__()
+    
+    def GenerateNewIndex(self):
+        i = 0;
+        while self.StringsByIndex.__contains__(i):
+            i = i + 1
+        return i
             
     def AddDate(self,year, month, day, value):
         daysInMonth = self.daysInaMonth(year, month)        

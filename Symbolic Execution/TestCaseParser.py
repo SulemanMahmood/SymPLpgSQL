@@ -19,7 +19,7 @@ class TestCaseParser:
         
         # Truncate Tables first
         for table in State.getTableListForTestCase():
-            line = 'Truncate Table '+ table + ';\n'
+            line = 'Truncate Table '+ table + ' cascade;\n'
             Test.write(line);
         
         # Setup data for tables
@@ -78,4 +78,3 @@ class TestCaseParser:
         
         TestFile = T
         return DataFile, TestFile
-    
