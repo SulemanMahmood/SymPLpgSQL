@@ -2,10 +2,11 @@ from Table import Table
 from ChoicesClass import ChoicesClass
 from CombinationGenerater import CombinationGenerator
 from Config import *
+from ProcedureClass import *
 
 class StateClass:    
     
-    def __init__(self, Procedure, DataHandler):   
+    def __init__(self, Procedure, DataHandler):
         self.Current_State_id = 0
         self.PreviousChoice_State_ID = 0
         self.DataHandler = DataHandler
@@ -14,6 +15,7 @@ class StateClass:
         self.State[self.Current_State_id] = {}
         self.State[self.Current_State_id]['Variables'] = {}
         self.State[self.Current_State_id]['Tables'] = {}
+        self.State[self.Current_State_id]['CallStackNumber'] = 0
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
         #self.State[self.Current_State_id]['Results']     Added Later
         #self.State[self.Current_State_id]['Node']        Added Later
@@ -23,19 +25,27 @@ class StateClass:
         self.Current_Tables = {}
         #self.Current_Choices        added later in current state setup
         #self.Current_Results        added later in Next Choice Function. Maybe useless.
+        #self.Current_Stack_No       added later in current state setup
+        
+        #Initialize Current State
+        self.Set_Current_State()
          
         for Arg in Procedure.getArgList():
             self.SetupVariable(Arg)
-             
-        #Initialize Current State
-        self.Set_Current_State()      
+            
         
     def SetupVariable(self, In):
         Type = In[0]
-        Name = In[1]
+        Name = self.CallStackNotoString() + In[1]
         
         self.Types[Name] = Type            
-        self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, Name)    
+        self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, Name)
+        
+    def CallStackNotoString(self):
+        return 'P'+ self.Current_Stack_No.__str__() + '_'
+        
+    def CallStackNotoStringForTestCase(self):
+        return 'P'+ (0).__str__() + '_'
                 
     def AddNewZ3ObjectForVariable(self,Name, Type):
         NewName = Name + "_" + self.Current_State_id.__str__()
@@ -45,6 +55,7 @@ class StateClass:
         self.Current_Variables = self.State[self.Current_State_id]['Variables']
         self.Current_Tables = self.State[self.Current_State_id]['Tables']
         self.Current_Choices = self.State[self.Current_State_id]['Choices']
+        self.Current_Stack_No = self.State[self.Current_State_id]['CallStackNumber']
         
     def getTableListForTestCase(self):
         List = []
@@ -77,14 +88,12 @@ class StateClass:
     def getColumnNamesListForTestCase(self,TableName):
         return self.State[0]['Tables'][TableName].getColumnNameList()
     
-    def getNoOfInputs(self):
-        return len(self.Alaises)
     
     def getColumnTypesListForTestCase(self,TableName):
         return self.State[0]['Tables'][TableName].getColumnTypeList()
     
     def getZ3ObjectFromNameForTestCase(self,Name):
-        return self.State[0]['Variables'][Name]
+        return self.State[0]['Variables'][self.CallStackNotoStringForTestCase() + Name]
         
     def getZ3ObjectFromName(self,Name):
         return self.State[self.Current_State_id]['Variables'][Name]
@@ -93,6 +102,9 @@ class StateClass:
         return self.State[self.Current_State_id-1]['Variables'][Name]
 
     def getTypeFromNameForTestCase(self,Name):
+        return self.Types[self.CallStackNotoStringForTestCase() + Name]
+    
+    def getTypeFromName(self,Name):
         return self.Types[Name]
     
     def getTableRowForTestCase(self, TableName):
@@ -141,6 +153,7 @@ class StateClass:
         self.State[self.Current_State_id]['Variables'] = {}
         self.State[self.Current_State_id]['Tables'] = {}
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
+        self.State[self.Current_State_id]['CallStackNumber'] = self.State[Old_State_id]['CallStackNumber']
         
         for K in self.State[Old_State_id]['Variables']:
             self.State[self.Current_State_id]['Variables'][K] = self.State[Old_State_id]['Variables'][K]
@@ -166,7 +179,6 @@ class StateClass:
             Condition = Condition.replace('('+k+' ', "(self.State.getOldZ3ObjectFromName('"+k+"') ")
             Condition = Condition.replace(' '+k+')', " self.State.getOldZ3ObjectFromName('"+k+"'))")
             Condition = Condition.replace('('+k+')', "(self.State.getOldZ3ObjectFromName('"+k+"'))")
-            
         return Condition
     
     def NextChoice(self):
@@ -187,8 +199,9 @@ class StateClass:
         else:
             return False
     
-    def MakeCondition(self,Parts,i,Condition):
+    def MakeCondition(self,Parts,i,Condition, CalledFromNullTest = False):
         Node = Parts[i].split(' ')
+        PrintLog(Node)
         if len(Node) == 1:
             if Node[0] in ['65', '67', '1048']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
@@ -252,16 +265,14 @@ class StateClass:
                 Condition = Condition + ' , '
                 Condition, i = self.MakeCondition(Parts, i, Condition)
             
-            elif Node[0] == 'Not':
+            elif Node[0] in ['Not', 'not']:
                 Condition = Condition + 'Not( '
                 Condition, i = self.MakeCondition(Parts, i + 1, Condition)
                 
-            elif Node[0] == 'T_NullTest':
-                Condition = Condition + '(' + self.DataHandler.NullValue.__str__() + ' == '
-                Condition, i = self.MakeCondition(Parts, i + 1, Condition)
-            
-            elif Node[0] == 'FunctionCall':
-                raise Exception('Sub Procedure Call')
+            elif Node[0] == 'T_NullTest':    ## this is a base case based on this we will treat booleans separately
+                Condition = Condition + '('
+                Condition, i = self.MakeCondition(Parts, i + 1, Condition, CalledFromNullTest = True)
+                Condition = Condition + ' == ' + self.DataHandler.NullValue.__str__() 
             
             else:
                 raise Exception('Unkown Operator '+ Node[0])
@@ -277,9 +288,18 @@ class StateClass:
             
         else:
             if Node[0] == 'Col':
-                Condition = Condition + Node[1]
+                Type = int(Node[1])
+                Name = Node[2]
+                Condition = Condition + self.DataHandler.ConditionHelper(Type, Name, CalledFromNullTest)
+            
             elif Node[0] == 'Param':
-                Condition = Condition + Node[1]
+                Type = int(Node[1])
+                Name = self.CallStackNotoString() + Node[2]
+                Condition = Condition + self.DataHandler.ConditionHelper(Type, Name, CalledFromNullTest)
+            
+            elif Node[0] == 'FunctionCall':
+                getProcedureFromNumber(int(Node[1]))
+            
             else:   #Constants
                 Type = int(Node[0])
                 Value = Node[1];
@@ -349,8 +369,8 @@ class StateClass:
             
             Rows1 = self.getNumberOfRowsForTestCase(TableName)
             Rows2 = self.getNumberOfRowsForTestCase(ForeignTable)
-            C = 'Or('
             for i in range(Rows1):
+                C = 'Or('
                 for j in range(Rows2):
                     C = C + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+Column.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElementForTestCase('"+ForeignTable+"', "+ForeginColumn.__str__()+", "+j.__str__()+")" + ", "
                 C = C + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+Column.__str__()+", "+i.__str__()+")" + " == " + self.DataHandler.NullValue.__str__() + "), "
@@ -395,7 +415,7 @@ class StateClass:
                 C = C + "self.State.getZ3ObjectForTableElement('"+TableName+"', "+Column.__str__()+", "+i.__str__()+")" + " == " + self.DataHandler.NullValue.__str__() + "), "
                 Condition = Condition + C
                
-        return Condition
+        return Condition[:-2]
     
     def AddTypeConstraintsOnVariablesForTestCase(self, Condition):
         for Name, Type in self.Types.items():
@@ -442,9 +462,10 @@ class StateClass:
             for Col in range(len(ColList)):
                 Parts = ColList[Col].split(' ')
                 
-                if len(Parts) == 2:
+                if len(Parts) >= 2:
                     if Parts[0] == 'Col':
-                        JoinParts = Parts[1].split('.')
+                        Type = Parts[1]
+                        JoinParts = Parts[2].split('.')
                         
                         if Parts[1] == 'ctid':
                             InnerRow = Rows[row]
@@ -462,13 +483,14 @@ class StateClass:
                                 TableRows[row].append(Outer.getZ3ObjectForTableElement(ColIndex, OuterRow)) 
                         
                         else:   # more conditions may be added later but right now else is a single table col supplied in Inner
-                            ColIndex = Inner.getColumnIndexFromName(Parts[1])
+                            ColIndex = Inner.getColumnIndexFromName(Parts[2])
                             InnerRow = Rows[row]
                             TableRows[row].append(Inner.getZ3ObjectForTableElement(ColIndex, InnerRow))
                             
                     elif Parts[0] == 'Param':
-                        if self.Current_Variables.__contains__(Parts[1]):
-                            TableRows[row].append(self.Current_Variables[Parts[1]])
+                        Name = self.CallStackNotoString() + Parts[2]
+                        if self.Current_Variables.__contains__(Name):
+                            TableRows[row].append(self.Current_Variables[Name])
                     
                     else:
                         Type = int(Parts[0])
@@ -512,7 +534,7 @@ class StateClass:
         ######################################################################################################################
         ####################################################   IF   ##########################################################
         ######################################################################################################################
-        if Parts[0] == 'IF':    
+        if Parts[0] == 'PLPGSQL_STMT_IF':    
             Condition, i = self.MakeCondition(Parts,1,'')
             PrintLog(Condition)
             Condition = self.SubstituteVars(Condition)
@@ -610,7 +632,7 @@ class StateClass:
             for Target in Targets:
                 TargetParts = Target.split(' ')
                 Type = int(TargetParts[0])
-                Name = TargetParts[1]
+                Name = self.CallStackNotoString() + TargetParts[1]
                 self.AddNewZ3ObjectForVariable(Name, Type)
                 ParsedTargets.append(self.SubstituteVars(' '+Name+' '))
 
@@ -640,14 +662,15 @@ class StateClass:
         ######################################################################################################################
         ##################################################  ASSIGNMENT  ######################################################
         ######################################################################################################################      
-        elif Parts[0] == 'ASSIGNMENT':
-            Target = Parts[1]
-            ReturnType = int(Parts[2])
+        elif Parts[0] == 'PLPGSQL_STMT_ASSIGN':
+            Node = Parts[1].split(' ')
+            Type = int(Node[0])
+            Target = self.CallStackNotoString() + Node[1]
 
-            Expr, i = self.MakeCondition(Parts, 3, '')
+            Expr, i = self.MakeCondition(Parts, 2, '')
             Expr = self.SubstituteOldVars(' ' + Expr + ' ')
             
-            self.AddNewZ3ObjectForVariable(Target, ReturnType)
+            self.AddNewZ3ObjectForVariable(Target, Type)
             Target = self.SubstituteVars(' '+Target+' ')
             Condition = Target + ' == ' + Expr
             PrintLog(Condition)
@@ -762,15 +785,16 @@ class StateClass:
             if Parts[1] == 'TargetList':
                 i = 2
                 while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
-                    if Parts[i] == 'FunctionCall':
+                    Node = Parts[i].split(' ')
+                    if Node[0] == 'FunctionCall':
                         if self.Current_State_id == 1:
                             self.Current_Choices.AddChoice('True', None)
                             return True
                         else:
-                            raise Exception('Sub Procedure Call')
-                    else: 
-                        ColumnList.append(Parts[i])
-                        i = i+1
+                            raise Exception('Sub Procedure Cal '+ Node[1])
+                     
+                    ColumnList.append(Parts[i])
+                    i = i+1
                                    
             T = self.ProcessTargetList(ColList = ColumnList)
             
@@ -810,21 +834,37 @@ class StateClass:
         ######################################################################################################################
         elif Parts[0] == 'PLPGSQL_STMT_RETURN':
             # Not doing much for retun type yet. It will be handled when we work on sub procedure calls
-            try:
-                returnType = int(Parts[1])
-                self.Current_Choices.AddChoice('True', None)
-                return True
-            except:             # not correct handling. instrumentation needs improvement
-                line = ''
-                for part in Parts[1:]:
-                    line = line + part + '\t'
-                return self.ProcessLine(line, False)
+            Node = Parts[1].split(' ')
+            if Node[0] == 'Param':
+                # make a result of param and return with true choice
+                pass
+            else:
+                try:    #constant return
+                    Type = int(Node[0])
+                    Value = Node[1]
+                    # make a result of param and return with true choice
+                except:
+                    line = ''
+                    for part in Parts[1:]:
+                        line = line + part + '\t'
+                    return self.ProcessLine(line, False)
+        
+            self.Current_Choices.AddChoice('True', None)
+            return True
         
         ######################################################################################################################
         ##############################################  PLPGSQL_STMT_RAISE   #################################################
         ######################################################################################################################
         elif Parts[0] == 'PLPGSQL_STMT_RAISE':
             # Not doing much here yet. May need to work on this but that is unlikely
+            self.Current_Choices.AddChoice('True', None)
+            return True
+        
+        ######################################################################################################################
+        ##############################################  PLPGSQL_STMT_EXECSQL   #################################################
+        ######################################################################################################################
+        elif Parts[0] == 'PLPGSQL_STMT_EXECSQL':
+            # Indicates Start of and SQL Statment Execution. May be helpful in some cases 
             self.Current_Choices.AddChoice('True', None)
             return True
         

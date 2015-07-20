@@ -49,6 +49,7 @@ class Z3Solver:
                     exec(code)
                     Condition = self.State.AddAllBaseConditionsForTestCase('')
                     code = 'self.S.add('+Condition+')'
+                    PrintLog(code)
                     self.S.push()   # establishing save point before adding base contraints
                     exec(code)
                     PrintLog(self.S)

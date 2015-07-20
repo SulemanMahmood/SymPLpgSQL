@@ -46,7 +46,7 @@ class Table:
                         self.NamebyAttnum[AttNum] = [index, Name]
                         
                     if NotNull:
-                        self.CheckConstraint.append('Not\tT_NullTest\tCol ' + Name+'\t')
+                        self.CheckConstraint.append('Not\tT_NullTest\tCol '+ Type.__str__() + ' ' + Name+'\t')
                     
                     index = index + 1
                 
@@ -69,8 +69,10 @@ class Table:
                 for cols in DB.fetchall():
                     constraint = []
                     for AttNum in cols[0]:
-                        constraint.append(self.NamebyAttnum[AttNum][0])
-                        self.CheckConstraint.append('Not\tT_NullTest\tCol ' + self.NamebyAttnum[AttNum][1]+'\t')
+                        Index = self.NamebyAttnum[AttNum][0]
+                        Type = self.getColumnTypeFromIndex(Index)
+                        constraint.append(Index)
+                        self.CheckConstraint.append('Not\tT_NullTest\tCol ' + Type.__str__() + ' ' + self.NamebyAttnum[AttNum][1]+'\t')
                     self.UniqueConstraint.append(constraint)
                 
                 CkCQuery = ("Select cons.conbin from pg_constraint cons, pg_class tab " +
@@ -272,7 +274,14 @@ class Table:
             a = S.find(' ')
             S = S[(a+1):]
             a = S.find(' ')
-            op = 'Col ' + self.NamebyAttnum[int(S[:a])][1]
+            varattno = int(S[:a])
+            a = S.find(':vartype')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            vartype = S[:a]
+            op = 'Col ' + vartype + ' ' + self.NamebyAttnum[varattno][1]
             
         elif token == 'CONST':
             a = S.find(':consttype')

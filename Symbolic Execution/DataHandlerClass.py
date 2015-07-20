@@ -17,7 +17,7 @@ class DataHandlerClass:
             return Int(Name)
         
         elif Type == 16 :                  # Boolean type
-            return Bool(Name)
+            return Int(Name)
         
         elif Type in [25, 1043] :                  # Text type
             return Int(Name)
@@ -35,14 +35,17 @@ class DataHandlerClass:
             raise Exception('Unknown Data Type ' + Type.__str__())
         
     def ProcessConstant(self, Type, Value):   # Type as int, Value as String
-        if (Type >= 20 and Type <= 23 ):   # Integer type
+        if Value in ('null', 'Null', 'NULL'):
+            return self.NullValue
+        
+        elif (Type >= 20 and Type <= 23 ):   # Integer type
             return int(Value)
 
         elif Type == 16:                    # Boolean type
             if Value == 'True':
-                return True
+                return 1
             elif Value == 'False':
-                return False
+                return 0
             else:
                 raise Exception('Invalid Value for Boolean type')
 
@@ -70,17 +73,19 @@ class DataHandlerClass:
                     return value.__str__()
         
         elif Type == 16:                     # Boolean
-            value = Model.evaluate(Variable)
-            if value.__str__() == 'True':
-                return 'True'
-            elif value.__str__() == 'False':
-                return 'False'
-            else:
+            try:
+                value = Model.evaluate(Variable)
+                value = int(value.__str__())
+            except:
                 value = randint(0,1)
-                if value.__str__() == 1:
-                    return 'True'
-                else:
-                    return 'False'
+            finally:
+                if value == self.NullValue:
+                    return 'NULL'
+                else: 
+                    if value.__str__() == 1:
+                        return 'True'
+                    else:
+                        return 'False'
             
         elif Type in [25, 1043]:                    # String / text
             try:
@@ -192,36 +197,44 @@ class DataHandlerClass:
         
         else:
             raise Exception('Type not handled in check constrains ' + Type.__str__())
+        
+    def ConditionHelper(self, Type, Name, CalledFromNullTest):
+        if Type == 16 and not CalledFromNullTest:
+                return '( ' + Name + ' == 1 )'  # means 1 represents true
+        else:
+            return Name
 
     def AddTableConstraint(self, Type, Name):
         if Type == 1042:
             return ("or\t" +
                         "or\t" + 
                             "and\t" +
-                                "150\tCol " + Name + "\t1042 A\t" + 
-                                "149\tCol " + Name + "\t1042 Z\t" +
+                                "150\tCol " + Type.__str__() + " " + Name + "\t1042 A\t" + 
+                                "149\tCol " + Type.__str__() + " " + Name + "\t1042 Z\t" +
                             "and\t" + 
-                                "150\tCol " + Name + "\t1042 a\t" + 
-                                "149\tCol " + Name + "\t1042 z\t" +
+                                "150\tCol " + Type.__str__() + " " + Name + "\t1042 a\t" + 
+                                "149\tCol " + Type.__str__() + " " + Name + "\t1042 z\t" +
                         "and\t" + 
-                            "150\tCol " + Name + "\t1042 0\t" + 
-                            "149\tCol " + Name + "\t1042 9\t")
+                            "150\tCol " + Type.__str__() + " " + Name + "\t1042 0\t" + 
+                            "149\tCol " + Type.__str__() + " " + Name + "\t1042 9\t")
         else:
             return None
     
     def getVariableTypeConstraint(self, Type, Name):
+        a = Name.find('_')
+        Name = Name[(a+1):]
         if Type == 1042:
             return ("or\t" +
                         "or\t" + 
                             "and\t" + 
-                                "150\tParam " + Name + "\t1042 A\t" + 
-                                "149\tParam " + Name + "\t1042 Z\t" +
+                                "150\tParam " + Type.__str__() + " " + Name + " \t1042 A\t" + 
+                                "149\tParam " + Type.__str__() + " " + Name + " \t1042 Z\t" +
                             "and\t" + 
-                                "150\tParam " + Name + "\t1042 a\t" + 
-                                "149\tParam " + Name + "\t1042 z\t" +
+                                "150\tParam " + Type.__str__() + " " + Name + " \t1042 a\t" + 
+                                "149\tParam " + Type.__str__() + " " + Name + " \t1042 z\t" +
                         "and\t" + 
-                            "150\tParam " + Name + "\t1042 0\t" + 
-                            "149\tParam " + Name + "\t1042 1\t")
+                            "150\tParam " + Type.__str__() + " " + Name + " \t1042 0\t" + 
+                            "149\tParam " + Type.__str__() + " " + Name + " \t1042 1\t")
     
         else:
             return None
@@ -290,3 +303,5 @@ class DataHandlerClass:
             else:
                 daysInMonth = 28
         return daysInMonth
+    
+    
