@@ -28,7 +28,7 @@ class DataHandlerClass:
         elif Type == 1700 :                # Numeric
             return Real(Name)
         
-        elif Type == 1082 :                # Date
+        elif Type in [1082, 1184] :                # Date
             return Int(Name)
         
         else:
@@ -82,7 +82,7 @@ class DataHandlerClass:
                 if value == self.NullValue:
                     return 'NULL'
                 else: 
-                    if value.__str__() == 1:
+                    if value == 1:
                         return 'True'
                     else:
                         return 'False'
@@ -132,7 +132,7 @@ class DataHandlerClass:
             else:
                 raise Exception('Exception in processig numeric')
         
-        elif Type == 1082:      #Date
+        elif Type in [1082, 1184]:      #Date
             try:
                 value = Model.evaluate(Variable)
                 value = int(value.__str__())
@@ -221,8 +221,6 @@ class DataHandlerClass:
             return None
     
     def getVariableTypeConstraint(self, Type, Name):
-        a = Name.find('_')
-        Name = Name[(a+1):]
         if Type == 1042:
             return ("or\t" +
                         "or\t" + 

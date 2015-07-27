@@ -19,13 +19,21 @@ class TestCaseParser:
         
         # Truncate Tables first
         for table in State.getTableListForTestCase():
-            line = 'Truncate Table '+ table + ' cascade;\n'
+            TableName = State.getTableName(table)
+            line = 'Truncate Table '+ TableName + ' cascade;\n'
+            Test.write(line);
+        
+        # Disable Triggers    
+        for table in State.getTableListForTestCase():
+            TableName = State.getTableName(table)
+            line = 'Alter Table '+ TableName + ' DISABLE TRIGGER ALL;\n'
             Test.write(line);
         
         # Setup data for tables
         for table in State.getTableListForTestCase():
             for eachrow in State.getTableRowForTestCase(table):
-                line = 'insert into '+ table + '('
+                TableName = State.getTableName(table)
+                line = 'insert into '+ TableName + ' ('
                 
                 Columns = State.getColumnNamesListForTestCase(table)
                 Types = State.getColumnTypesListForTestCase(table)
@@ -43,6 +51,12 @@ class TestCaseParser:
                 
                 line = line[:-2] + ');\n'                        
                 Test.write(line);
+                
+        #Enable Triggers
+        for table in State.getTableListForTestCase():
+            TableName = State.getTableName(table)
+            line = 'Alter Table '+ TableName + ' ENABLE TRIGGER ALL;\n'
+            Test.write(line);
         
         line = 'commit;\n'
         Test.write(line)

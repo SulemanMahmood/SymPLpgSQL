@@ -19,8 +19,16 @@ class Z3Solver:
         
         Line = Trace.readline()
         while Line != '':
-            Line = Line[:-1]       
-            ProceedToNextLine = self.ProcessLine(Line)
+            Line = Line[:-1]
+            try:       
+                ProceedToNextLine = self.ProcessLine(Line)
+            except Exception as e:
+                if e.message == 'Symbolic Executor: Maximum Stack Depth Reached':
+                    self.CaseParser.IncrementCaseNumber()
+                    ProceedToNextLine = False
+                else:
+                    raise
+                
             if ProceedToNextLine:
                 Line = Trace.readline()
                 continue
@@ -84,6 +92,7 @@ class Z3Solver:
             Condition, _ = self.State.NextChoice()
             code = 'self.S.add('+Condition+')'
             self.S.push()
+            PrintLog(code)
             exec(code)
             return True
         else:

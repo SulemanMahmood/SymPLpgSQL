@@ -5,8 +5,8 @@ import psycopg2
 class Table:
     TableRows = 2
     
-    def __init__(self, Name, DataHandler, IsADBTable = True, IsNotCopy = True):
-        self.Name = Name            # Any change here should go to copy functions as well
+    def __init__(self, oid, DataHandler, IsADBTable = True, IsNotCopy = True):
+        self.oid = oid            # Any change here should go to copy functions as well
         self.DataHandler = DataHandler
         self.ColumnsByName = {}
         self.ColumsByIndex = {}
@@ -16,19 +16,26 @@ class Table:
         self.CheckConstraint = []
         self.FKConstraint = []
         self.IsADBTable = IsADBTable
+        self.Name = oid     # Will be overridden for copy and new db table
         
         if IsNotCopy:
             if self.IsADBTable:
+                DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
+                DB = DBConn.cursor()
+                
+                NameQuery = "select relname from pg_class where oid = " + self.oid
+                DB.execute(NameQuery)
+                NameList = DB.fetchall()
+                self.Name = NameList[0][0]
+                
                 ColQuery = ("Select cols.attname, cols.atttypid, cols.attnum, cols.attnotnull " +
                 "from pg_attribute cols, pg_class tab " +
                 "where tab.oid = cols.attrelid " +
-                "and tab.relname = '" + self.Name + "' " +
+                "and tab.oid = " + self.oid + " " +
                 "and attnum > 0 " +
                 "and cols.atttypid <> 0" 
                 "order by attnum asc")
                 
-                DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
-                DB = DBConn.cursor()
                 DB.execute(ColQuery)
                 
                 index = 0;
@@ -51,7 +58,7 @@ class Table:
                     index = index + 1
                 
                 UkQuery = ("Select cons.conkey from pg_constraint cons, pg_class tab " +
-                           "where tab.relname = '" + self.Name +"' " + 
+                           "where tab.oid = " + self.oid +" " + 
                            "and cons.conrelid = tab.oid and contype = 'u'")
                 DB.execute(UkQuery)
 
@@ -62,7 +69,7 @@ class Table:
                     self.UniqueConstraint.append(constraint)    
                 
                 PKQuery = ("Select cons.conkey from pg_constraint cons, pg_class tab " +
-                           "where tab.relname = '" + self.Name +"' " + 
+                           "where tab.oid = " + self.oid +" " + 
                            "and cons.conrelid = tab.oid and contype = 'p'")
                 DB.execute(PKQuery)
                 
@@ -76,7 +83,7 @@ class Table:
                     self.UniqueConstraint.append(constraint)
                 
                 CkCQuery = ("Select cons.conbin from pg_constraint cons, pg_class tab " +
-                           "where tab.relname = '" + self.Name +"' " + 
+                           "where tab.oid = " + self.oid +" " + 
                            "and cons.conrelid = tab.oid and contype = 'c'")
                 
                 DB.execute(CkCQuery)
@@ -89,22 +96,22 @@ class Table:
                     if C != None:
                         self.CheckConstraint.append(C)
                         
-                FKQuery = ("Select cons.conkey, tab2.relname, cons.confkey " +
+                FKQuery = ("Select cons.conkey, tab2.oid, cons.confkey " +
                            "from pg_constraint cons, pg_class tab, pg_class tab2 " + 
                            "where cons.conrelid = tab.oid and contype = 'f' " + 
-                           "and tab.relname = '" + self.Name +"' and cons.confrelid = tab2.oid" )
+                           "and tab.oid = " + self.oid +" and cons.confrelid = tab2.oid" )
                 
                 DB.execute(FKQuery)
                 
                 for cons in DB.fetchall():
                     Fk = {} 
                     Fk['Column'] = cons[0][0]
-                    Fk['ForeignTable'] = cons[1]
+                    Fk['ForeignTable'] = cons[1].__str__()
                     Fk['ForeignColumn'] = cons[2][0]
                     self.FKConstraint.append(Fk)
                 
                 OTQuery = ("Select contype from pg_constraint cons, pg_class tab " +
-                           "where tab.relname = '" + self.Name +"' " + 
+                           "where tab.oid = " + self.oid +" " + 
                            "and cons.conrelid = tab.oid and contype not in ('p','c','u','f')")
                  
                 DB.execute(OTQuery)
@@ -127,6 +134,9 @@ class Table:
                 
     def getRows(self):
         return self.Rows
+    
+    def getName(self):
+        return self.Name
         
     def getColumnIndexFromName(self, Name):
         return (self.ColumnsByName[Name])[1]
@@ -156,7 +166,7 @@ class Table:
         return (self.ColumsByIndex[Index])[0]
     
     def getColumnNameFromIndex(self, Index):
-        return (self.ColumsByIndex[Index])[0]
+        return (self.ColumsByIndex[Index])[1]
         
     def getNumberOfRows(self):
         return len(self.Rows)
@@ -188,7 +198,7 @@ class Table:
         for ColIndex in range(self.ColumsByIndex.__len__()):
             V = self.ColumsByIndex[ColIndex]
             Type = V[0]
-            Name = self.Name + "_" + V[1] + RowIndex.__str__() + ColIndex.__str__()
+            Name = self.oid + "_" + V[1] + RowIndex.__str__() + ColIndex.__str__()
             row.append(self.DataHandler.getZ3Object(Type, Name))
         
         self.Rows.append(row)
@@ -202,13 +212,14 @@ class Table:
                 
     def Copy(self):
         # Makes a Partly Shallow Partly Deep Copy of the Table
-        T = Table(self.Name, self.DataHandler, self.IsADBTable, False)
+        T = Table(self.oid, self.DataHandler, self.IsADBTable, False)
         T.ColumnsByName = self.ColumnsByName
         T.ColumsByIndex = self.ColumsByIndex
         T.NamebyAttnum = self.NamebyAttnum
         T.UniqueConstraint = self.UniqueConstraint
         T.CheckConstraint = self.CheckConstraint
         T.FKConstraint = self.FKConstraint
+        T.Name = self.Name
         
         for eachrow in self.Rows:
             row = []
@@ -220,6 +231,12 @@ class Table:
             
     def setRows(self, TableRows):
         self.Rows = TableRows
+        
+    def setColumnName(self,Index, Name):
+        if not (self.ColumnsByName.__contains__(Name)):
+            self.ColumnsByName[Name] = [0, Index]
+        if not (self.ColumsByIndex.__contains__(Index)):
+            self.ColumsByIndex[Index] = [0, Name]
         
     def UpdateRowsFromTable(self, Prev_Result):
         #ctid is always last column in update
