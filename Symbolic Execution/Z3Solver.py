@@ -26,6 +26,7 @@ class Z3Solver:
                 if e.message == 'Symbolic Executor: Maximum Stack Depth Reached':
                     self.CaseParser.IncrementCaseNumber()
                     ProceedToNextLine = False
+                    raise
                 else:
                     raise
                 

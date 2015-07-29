@@ -9,12 +9,14 @@ class StateClass:
     def __init__(self, Procedure, DataHandler):
         self.Current_State_id = 0
         self.PreviousChoice_State_ID = 0
-        self.ReturnVariableCount = 0
+        self.Call_ID_Seq = 0
+        self.CallStack = []
         
         self.DataHandler = DataHandler
         
         self.State = {}
         self.State[self.Current_State_id] = {}
+        self.State[self.Current_State_id]['Call_ID'] = 0
         self.State[self.Current_State_id]['Variables'] = {}
         self.State[self.Current_State_id]['Tables'] = {}
         self.State[self.Current_State_id]['CallStackNumber'] = 0
@@ -22,10 +24,9 @@ class StateClass:
         #self.State[self.Current_State_id]['Results']     Added Later
         #self.State[self.Current_State_id]['Node']        Added Later
         self.Loops = []
+        self.IFs = []
         self.TempFunctionCalls = []
         self.FunctionCalls = []
-        self.CallCountAtStackLevel = {}
-        self.CallCountAtStackLevel[self.State[self.Current_State_id]['CallStackNumber']] = 0
         self.State[self.Current_State_id]['IgnoreNodes'] = False
         
         self.Types = {}
@@ -33,7 +34,6 @@ class StateClass:
         self.Current_Tables = {}
         #self.Current_Choices        added later in current state setup
         #self.Current_Results        added later in Next Choice Function. Maybe useless.
-        #self.Current_Stack_No       added later in current state setup
         
         #Initialize Current State
         self.Set_Current_State()
@@ -52,16 +52,13 @@ class StateClass:
         self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, Name)
         
     def CallStackNotoString(self):
-        return 'P'+ self.Current_Stack_No.__str__() + '_' + self.CallCountAtStackLevel[self.Current_Stack_No].__str__() + '_'
-#         return 'P'+ self.Current_Stack_No.__str__() + '_'
+        return 'P'+ self.State[self.Current_State_id]['Call_ID'].__str__() + '_'
     
-    def TempCallStackNotoString(self, CallStack, CallNumber):
-        return 'P'+ CallStack.__str__() + '_' + CallNumber.__str__() + '_'
-#         return 'P'+ CallStack.__str__() + '_'
+    def TempCallStackNotoString(self, Call_ID):
+        return 'P'+ Call_ID.__str__() + '_'
         
     def CallStackNotoStringForTestCase(self):
-        return 'P'+ (0).__str__() + '_' + (0).__str__() + '_'
-#         return 'P'+ (0).__str__() + '_'
+        return 'P'+ (0).__str__() + '_'
                 
     def AddNewZ3ObjectForVariable(self,Name, Type):
         NewName = Name + "_" + self.Current_State_id.__str__()
@@ -71,7 +68,6 @@ class StateClass:
         self.Current_Variables = self.State[self.Current_State_id]['Variables']
         self.Current_Tables = self.State[self.Current_State_id]['Tables']
         self.Current_Choices = self.State[self.Current_State_id]['Choices']
-        self.Current_Stack_No = self.State[self.Current_State_id]['CallStackNumber']
         
     def getTableListForTestCase(self):
         List = []
@@ -169,6 +165,7 @@ class StateClass:
         Old_State_id = self.Current_State_id
         self.Current_State_id = self.Current_State_id + 1
         self.State[self.Current_State_id] = {}
+        self.State[self.Current_State_id]['Call_ID'] = self.State[Old_State_id]['Call_ID']
         self.State[self.Current_State_id]['Variables'] = {}
         self.State[self.Current_State_id]['Tables'] = {}
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
@@ -292,7 +289,16 @@ class StateClass:
             elif Node[0] == 'T_NullTest':    ## this is a base case based on this we will treat booleans separately
                 Condition = Condition + '('
                 Condition, i = self.MakeCondition(Parts, i + 1, Condition, CalledFromNullTest = True)
-                Condition = Condition + ' == ' + self.DataHandler.NullValue.__str__() 
+                Condition = Condition + ' == ' + self.DataHandler.NullValue.__str__()
+                
+            elif Node[0] == 'ARGUMENT_START':
+                # Find Argument End
+                lookupindex = i
+                while ( Parts[lookupindex] != 'ARGUMENT_END'):
+                    lookupindex = lookupindex + 1
+                PartsCopy = Parts[i+1 : lookupindex]
+                Condition, _ = self.MakeCondition(PartsCopy, 0, '')
+                return Condition, lookupindex + 1 
             
             else:
                 raise Exception('Unkown Operator '+ Node[0])
@@ -323,23 +329,21 @@ class StateClass:
             elif Node[0] == 'FunctionCall':
                 Proc = getProcedureFromNumber(Node[1]) 
                 ReturnType = Proc.getReturnType()
-                self.ReturnVariableCount = self.ReturnVariableCount + 1
                 
                 #Making Function Call Condition
-                TempCallStackNumber = self.Current_Stack_No + 1     # Problem here if more than one function is found in expression 
-                if self.CallCountAtStackLevel.__contains__(TempCallStackNumber): # Problem here if function found in Scan/Join Condition. Consdition is not reconstructed for each row in those cases.
-                    TempCallCountNumber = self.CallCountAtStackLevel[TempCallStackNumber] + 1
-                else:
-                    TempCallCountNumber = 0
+                self.Call_ID_Seq = self.Call_ID_Seq + 1 
+                CallID = self.Call_ID_Seq
                     
-                RetturnVariableName = self.TempCallStackNotoString(TempCallStackNumber, TempCallCountNumber) + 'RETURNVARIABLE'
+                RetturnVariableName = self.TempCallStackNotoString(CallID) + 'RETURNVARIABLE'
                 
                 CallCondition = ''
                 FunctionArgNames = []
                 
+                i = i + 1   # point to next node to be processed
+                
                 for Arg in Proc.getArgList() :
-                    processedarg, i = self.MakeCondition(Parts, i + 1, '')
-                    ArgName = self.TempCallStackNotoString(TempCallStackNumber, TempCallCountNumber) + Arg[1]
+                    processedarg, i = self.MakeCondition(Parts, i, '')
+                    ArgName = self.TempCallStackNotoString(CallID) + Arg[1]
                     Arg[1] = ArgName
                     FunctionArgNames.append(Arg)
                     C = ' ' + ArgName + " == " + processedarg
@@ -352,8 +356,8 @@ class StateClass:
                 FunctionCall['CallCondition'] = CallCondition
                 FunctionCall['ReturnVariableName'] = RetturnVariableName
                 FunctionCall['ReturnType'] = ReturnType
-                FunctionCall['TempCallStackNumber'] = TempCallStackNumber
-                FunctionCall['TempCallCountNumber'] = TempCallCountNumber
+                FunctionCall['ReturnStateID'] = None
+                FunctionCall['Call_ID'] = CallID
                 FunctionCall['FunctionArgNames'] = FunctionArgNames
                 
                 self.TempFunctionCalls.append(FunctionCall)
@@ -575,7 +579,38 @@ class StateClass:
                             T.setColumnName(IndexToAddName, Name)
                             
                         elif Parts[0] == 'FunctionCall':
-                            raise Exception ("Sub Procedure Call in TargetList")
+                            if Rows != None:
+                                raise Exception ('Target List Call not from T_Result')
+                            
+                            FunctionID = Parts[1]
+                            
+                            ColIndex = len(TableRows[row])
+                            Last = Target[-1]
+                            isAs = Last.split(' ')
+                            if isAs[0] == 'AS':
+                                Name = isAs[1]
+                                T.setColumnName(ColIndex, Name)
+                                Target = Target[:-1]                        
+                            
+                            # Now Play with Target
+                            Expr , _ = self.MakeCondition(Target, 0, '')
+                            Expr = self.SubstituteOldVars(' ' + Expr + ' ')
+                                
+                            for F in self.TempFunctionCalls:
+                                F1, Expr = self.SubstituteInFunctionCall(F, Expr)
+                                self.FunctionCalls.append(F1)
+                                              
+                            self.TempFunctionCalls = []
+                            
+                            ResultName = self.CallStackNotoString() + T.getName()
+                            Type = getProcedureReturnType(FunctionID)
+                            
+                            TableRows[row].append(self.DataHandler.getZ3Object(Type, ResultName))
+                            
+                            C = "self.State.getZ3ObjectForResultElement( " + self.Current_State_id.__str__() + " , " + ColIndex.__str__() + " , " + row.__str__() +" )" + ' == ' + Expr
+                            PrintLog(C)
+                            Condition = Condition + C + ", "
+                            break
                         
                         else:
                             Type = int(Parts[0])
@@ -584,45 +619,25 @@ class StateClass:
                             TableRows[row].append(self.DataHandler.ProcessConstant(Type, Value))
                             
                     else:   # Encountered an Operation. Find and remove the AS condition and pass the rest to make condition
+                        if Rows != None:
+                            raise Exception ('Target List Call not from T_Result')
+                        
                         ColIndex = len(TableRows[row])
                         Last = Target[-1]
                         isAs = Last.split(' ')
                         if isAs[0] == 'AS':
                             Name = isAs[1]
                             T.setColumnName(ColIndex, Name)
-                            Target = Target[:-1]
-                    
+                            Target = Target[:-1]                        
+                        
                         # Now Play with Target
                         Expr , _ = self.MakeCondition(Target, 0, '')
-                        if Rows == None:
-                            Expr = self.SubstituteOldVars(' ' + Expr + ' ')
-                        else:
-                            raise Exception ('Target List Call not from T_Result')
-                        
-                        for FunctionCall in self.TempFunctionCalls:
-                            ReturnVariableName = FunctionCall['ReturnVariableName']
-                            ReturnType = FunctionCall['ReturnType']
-                            self.Types[ReturnVariableName] = ReturnType
-                            self.State[self.Current_State_id]['Variables'][ReturnVariableName] = self.DataHandler.getZ3Object(ReturnType, ReturnVariableName)
-                            Expr = Expr.replace(' ' + ReturnVariableName + ' ', " self.State.getZ3ObjectFromName('" + ReturnVariableName + "') ")
+                        Expr = self.SubstituteOldVars(' ' + Expr + ' ')
                             
-                            CallCondition = FunctionCall['CallCondition']
-                            for FunctionArg in FunctionCall['FunctionArgNames']:
-                                ArgName = FunctionArg[1]
-                                ArgType = FunctionArg[0]
-                                self.Types[ArgName] = FunctionArg[0]
-                                self.State[self.Current_State_id]['Variables'][ArgName] = self.DataHandler.getZ3Object(ArgType, ArgName)
-                                CallCondition = CallCondition.replace(' ' + FunctionArg[1] + ' ', " self.State.getZ3ObjectFromName('" + ArgName + "') ")
-                                
-                            if Rows == None:
-                                CallCondition = self.SubstituteVars(CallCondition)   
-                            else:
-                                raise Exception ('Target List Call not from T_Result')
-                            
-                            FunctionCall['CallCondition'] = CallCondition
-                            
-                            self.FunctionCalls.append(FunctionCall) 
-                        
+                        for F in self.TempFunctionCalls:
+                            F1, Expr = self.SubstituteInFunctionCall(F, Expr)
+                            self.FunctionCalls.append(F1)
+                                          
                         self.TempFunctionCalls = []
                         
                         ResultName = self.CallStackNotoString() + T.getName()
@@ -640,6 +655,30 @@ class StateClass:
                     
         T.setRows(TableRows)
         return T, Condition ;
+    
+    def SubstituteInFunctionCall(self,F, Expr):
+        # Process return variable
+        ReturnVariableName = F['ReturnVariableName']
+        ReturnType = F['ReturnType']
+        self.Types[ReturnVariableName] = ReturnType
+        self.State[self.Current_State_id]['Variables'][ReturnVariableName] = self.DataHandler.getZ3Object(ReturnType, ReturnVariableName)
+        Expr = Expr.replace(' ' + ReturnVariableName + ' ', " self.State.getZ3ObjectFromName('" + ReturnVariableName + "') ")
+        
+        # Process Call Condition
+        CallCondition = F['CallCondition']
+        for FunctionArg in F['FunctionArgNames']:
+            ArgName = FunctionArg[1]
+            ArgType = FunctionArg[0]
+            self.Types[ArgName] = FunctionArg[0]
+            self.State[self.Current_State_id]['Variables'][ArgName] = self.DataHandler.getZ3Object(ArgType, ArgName)
+            CallCondition = CallCondition.replace(' ' + FunctionArg[1] + ' ', " self.State.getZ3ObjectFromName('" + ArgName + "') ")
+            
+        CallCondition = self.SubstituteVars(CallCondition)
+        PrintLog(CallCondition)   
+        
+        F['CallCondition'] = CallCondition
+        
+        return F, Expr
     
     def getTable(self, TableName):
         if self.Current_Tables.__contains__(TableName):
@@ -681,14 +720,49 @@ class StateClass:
         ######################################################################################################################
         ####################################################   IF   ##########################################################
         ######################################################################################################################
-        if Parts[0] == 'PLPGSQL_STMT_IF':    
-            Condition, i = self.MakeCondition(Parts,1,'')
-            PrintLog(Condition)
-            Condition = self.SubstituteVars(Condition)
-               
-            self.Current_Choices.AddChoice(Condition, None)
-            self.Current_Choices.AddChoice('Not('+Condition+')', None)
-            return False
+        if Parts[0] == 'PLPGSQL_STMT_IF':
+            IF = {}
+            IF['StartingState'] = self.Current_State_id
+            if Parts[1] == 'COMPLEX_CONDITION':
+                IF['COMPLEX'] = True
+                self.IFs.append(IF)
+                self.Current_Choices.AddChoice('True', None)
+                return True
+                
+            else:
+                IF['COMPLEX'] = False
+                self.IFs.append(IF)
+                    
+                Condition, i = self.MakeCondition(Parts,1,'')
+                PrintLog(Condition)
+                Condition = self.SubstituteVars(Condition)
+                   
+                self.Current_Choices.AddChoice(Condition, None)
+                self.Current_Choices.AddChoice('Not('+Condition+')', None)
+                return False
+            
+        ######################################################################################################################
+        ###########################################   PLPGSQL_STMT_IF_END   ##################################################
+        ######################################################################################################################
+        if Parts[0] == 'PLPGSQL_STMT_IF_END':
+            if self.IFs == []:
+                self.Current_Choices.AddChoice('True', None)
+                return True
+            
+            IF = self.IFs.pop()
+
+            if IF['COMPLEX'] == True:
+                IF['COMPLEX'] = True
+                self.IFs.append(IF)
+                Condition = ' self.State.getZ3ObjectForResultElement( ' + (self.Current_State_id - 1).__str__() + ' , 0, 0) == ' + self.DataHandler.ProcessConstant(16,'True') + ' )'
+                NotCondition = ' self.State.getZ3ObjectForResultElement( ' + (self.Current_State_id - 1).__str__() + ' , 0, 0) == ' + self.DataHandler.ProcessConstant(16,'False') + ' )'
+                self.Current_Choices.AddChoice(Condition, None)
+                self.Current_Choices.AddChoice(NotCondition, None)
+                return False
+                
+            else:
+                self.Current_Choices.AddChoice('True', None)
+                return True
             
         ######################################################################################################################
         ###########################################  T_SeqScan & T_IndexScan  ################################################
@@ -829,8 +903,11 @@ class StateClass:
             Expr, _ = self.MakeCondition(Parts, 2, '')
             Expr = self.SubstituteOldVars(' ' + Expr + ' ')
             
-            if self.TempFunctionCalls != []:
-                raise Exception ('Function Call in Assignment Statement')
+            for F in self.TempFunctionCalls:
+                F1, Expr = self.SubstituteInFunctionCall(F, Expr)
+                self.FunctionCalls.append(F1)
+                    
+            self.TempFunctionCalls = []
             
             self.AddNewZ3ObjectForVariable(Target, Type)
             Target = self.SubstituteVars(' '+Target+' ')
@@ -1011,40 +1088,67 @@ class StateClass:
         ######################################################################################################################
         elif Parts[0] == 'PLPGSQL_STMT_RETURN':
             # Not doing much for retun type yet. It will be handled when we work on sub procedure calls
-            if self.State[self.Current_State_id]['CallStackNumber'] == 0:
-                self.Current_Choices.AddChoice('True', None)
-                return True
-                
-            self.State[self.Current_State_id]['CallStackNumber'] = self.State[self.Current_State_id]['CallStackNumber'] - 1
-            T = None
+                                   
             Node = Parts[1].split(' ')
+            T = Table('Result' + self.Current_State_id.__str__(),self.DataHandler, False, False);
+            TableRows = []
+            Row = []
+            
+            self.CallStack[-1]['ReturnStateID'] = self.Current_State_id
+            
             if Node[0] == 'Param':
-                T = Table('Result' + self.Current_State_id.__str__(),self.DataHandler, False, False);
-                Name = self.CallStackNotoString() + Node[2]
-                TableRows = []
-                Row = []
-                Row.append(self.getZ3ObjectFromName(Name))
-                TableRows.append(Row)
-                T.setRows(TableRows)
-            else:
-                try:    #constant return
-                    Type = int(Node[0])
-                    Value = Node[1]
-                    T = Table('Result' + self.Current_State_id.__str__(),self.DataHandler, False, False);
-                    TableRows = []
-                    Row = []
-                    Row.append( self.DataHandler.ProcessConstant(Type, Value) )
-                    TableRows.append(Row)
-                    T.setRows(TableRows)
-                                    
-                except:
-                    line = ''
-                    for part in Parts[1:]:
-                        line = line + part + '\t'
-                    return self.ProcessLine(line, False)
-        
-            self.Current_Choices.AddChoice('True', T)
-            return True
+                Row.append(self.getZ3ObjectFromName(self.CallStackNotoString() + Node[2]))
+                Condition = 'True'
+                
+            elif (Node[0] == 'FunctionCall') or (getProcedureReturnType(Node[0]) != None) :
+                ResultName = self.CallStackNotoString() + T.getName()
+                
+                if Node[0] == 'FunctionCall':
+                    Type = getProcedureReturnType(Node[1])
+                else:
+                    Type = getProcedureReturnType(Node[0])
+                    
+                Row.append(self.DataHandler.getZ3Object(Type, ResultName))
+                
+                Expr , _ = self.MakeCondition(Parts,1 , '')
+                Expr = self.SubstituteOldVars(' ' + Expr + ' ')
+                
+                for FunctionCall in self.TempFunctionCalls:
+                    ReturnVariableName = FunctionCall['ReturnVariableName']
+                    ReturnType = FunctionCall['ReturnType']
+                    self.Types[ReturnVariableName] = ReturnType
+                    self.State[self.Current_State_id]['Variables'][ReturnVariableName] = self.DataHandler.getZ3Object(ReturnType, ReturnVariableName)
+                    Expr = Expr.replace(' ' + ReturnVariableName + ' ', " self.State.getZ3ObjectFromName('" + ReturnVariableName + "') ")
+                    
+                    CallCondition = FunctionCall['CallCondition']
+                    for FunctionArg in FunctionCall['FunctionArgNames']:
+                        ArgName = FunctionArg[1]
+                        ArgType = FunctionArg[0]
+                        self.Types[ArgName] = FunctionArg[0]
+                        self.State[self.Current_State_id]['Variables'][ArgName] = self.DataHandler.getZ3Object(ArgType, ArgName)
+                        CallCondition = CallCondition.replace(' ' + FunctionArg[1] + ' ', " self.State.getZ3ObjectFromName('" + ArgName + "') ")
+                        
+                    CallCondition = self.SubstituteVars(CallCondition)   
+                    FunctionCall['CallCondition'] = CallCondition
+                    
+                    self.FunctionCalls.append(FunctionCall) 
+                
+                self.TempFunctionCalls = []
+                
+                
+                Condition = "self.State.getZ3ObjectForResultElement( " + self.Current_State_id.__str__() + " , " + (0).__str__() + " , " + (0).__str__() +" )" + ' == ' + Expr
+                
+                
+            else:   # Node is a constant
+                Type = int(Node[0])
+                Value = Node[1]
+                Row.append( self.DataHandler.ProcessConstant(Type, Value) )
+                Condition = 'True'
+            
+            TableRows.append(Row)    
+            T.setRows(TableRows)        
+            self.Current_Choices.AddChoice(Condition, T)
+            return False
         
         ######################################################################################################################
         ##############################################  PLPGSQL_STMT_RAISE   #################################################
@@ -1140,50 +1244,104 @@ class StateClass:
         ######################################################################################################################
         elif Parts[0] == 'PLPGSQL_STMT_FORS_LOOP_END':
             self.Current_Choices.AddChoice('True', None)
-            return True        
+            return True
+        
+        ######################################################################################################################
+        ##############################################  PLPGSQL_STMT_LOOP  ###################################################
+        ######################################################################################################################
+#         elif Parts[0] == 'PLPGSQL_STMT_LOOP':
+#             # Loop statement is really nothing till we reach the exit statement
+#             self.Current_Choices.AddChoice('True', None)
+#             return True
+                
         
         ######################################################################################################################
         ###############################################  START_FUNCTION   ####################################################
         ######################################################################################################################
         
         elif Parts[0] == 'START_FUNCTION':
-            if self.Current_State_id == 2:
+            if self.Current_State_id in [1, 2]:
+                
+                FunctionCall = {}
+                FunctionCall['FunctionID'] = Parts[1]
+                FunctionCall['CallCondition'] = ''
+                FunctionCall['ReturnVariableName'] = ''
+                FunctionCall['ReturnType'] = ''
+                FunctionCall['ReturnStateID'] = None
+                FunctionCall['Call_ID'] = 0
+                FunctionCall['FunctionArgNames'] = None
+                
+                self.CallStack.append(FunctionCall)
+                
                 self.Current_Choices.AddChoice('True', None)
                 return True
             else:
-                FunctionCall = None
-                for F in self.FunctionCalls:
-                    if F['FunctionID'] == Parts[1]:
-                        FunctionCall = F
-                        break
-                self.FunctionCalls.remove(FunctionCall)
-                
-                CallCondition = FunctionCall['CallCondition']
-                
-                self.State[self.Current_State_id]['CallStackNumber'] = self.State[self.Current_State_id]['CallStackNumber'] + 1
-                if self.CallCountAtStackLevel.__contains__( self.State[self.Current_State_id]['CallStackNumber'] ):
-                    self.CallCountAtStackLevel[self.State[self.Current_State_id]['CallStackNumber']] = self.CallCountAtStackLevel[self.State[self.Current_State_id]['CallStackNumber']] + 1
-                else:
-                    self.CallCountAtStackLevel[self.State[self.Current_State_id]['CallStackNumber']] = 0
-                
-                if self.State[self.Current_State_id]['CallStackNumber'] == MaximumStackDepth:
+                if self.CallStack.__len__() >= MaximumStackDepth:
                     #Clear Log
                     PrintLog('Maximum Stack depth reached. Clearing log.')
                     LogFile = open(TraceFile, 'w')
                     LogFile.close()
                     self.Current_Choices.AddChoice('False', None)
                     raise Exception("Symbolic Executor: Maximum Stack Depth Reached")
-    
-                    
+                
+                FunctionCall = None
+                for F in self.FunctionCalls:
+                    if F['FunctionID'] == Parts[1]:
+                        FunctionCall = F
+                        break
+                self.FunctionCalls.remove(FunctionCall)
+                self.CallStack.append(FunctionCall)
+                
+                CallCondition = FunctionCall['CallCondition']
+                
+                self.State[self.Current_State_id]['Call_ID'] = FunctionCall['Call_ID']    
                 self.State[self.Current_State_id]['Variables'][(self.CallStackNotoString() + 'found')] = False
                 
                 self.Current_Choices.AddChoice(CallCondition, None)
                 return True
         
         ######################################################################################################################
+        ################################################  END_FUNCTION   #####################################################
+        ######################################################################################################################
+        
+        elif Parts[0] == 'END_FUNCTION':
+            if self.CallStack.__len__() == 1:
+                # End
+                self.Current_Choices.AddChoice('True', None)
+                return False
+            else:
+                FunctionCall = self.CallStack.pop()
+                ReturnVariableName = FunctionCall['ReturnVariableName']
+                ReturnStateID = FunctionCall['ReturnStateID']
+                
+                #set call id to returning function call id
+                self.State[self.Current_State_id]['Call_ID'] = self.CallStack[-1]['Call_ID']
+                
+                Condition = ' ' + ReturnVariableName + ' '
+                Condition = self.SubstituteVars(Condition)
+                Condition = Condition + ' == self.State.getZ3ObjectForResultElement( + ' + ReturnStateID.__str__() + ' , 0, 0)'
+                
+                T = Table('Result' + self.Current_State_id.__str__(),self.DataHandler, False, False);
+                TableRows = []
+                Row = []
+                Row.append(self.Current_Variables[ReturnVariableName])
+                TableRows.append(Row)
+                T.setRows(TableRows)
+                
+                self.Current_Choices.AddChoice(Condition, T)
+                return True
+
+        ######################################################################################################################
         ##################################################  Blank Line  ######################################################
         ######################################################################################################################
         elif Parts[0] == '':
+            self.Current_Choices.AddChoice('True', None)
+            return True
+        
+        ######################################################################################################################
+        ##############################################  COMPLEX_CONDITION  ###################################################
+        ######################################################################################################################
+        elif Parts[0] == 'COMPLEX_CONDITION':
             self.Current_Choices.AddChoice('True', None)
             return True
         

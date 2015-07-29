@@ -53,10 +53,10 @@ class TestCaseParser:
                 Test.write(line);
                 
         #Enable Triggers
-        for table in State.getTableListForTestCase():
-            TableName = State.getTableName(table)
-            line = 'Alter Table '+ TableName + ' ENABLE TRIGGER ALL;\n'
-            Test.write(line);
+#         for table in State.getTableListForTestCase():
+#             TableName = State.getTableName(table)
+#             line = 'Alter Table '+ TableName + ' ENABLE TRIGGER ALL;\n'
+#             Test.write(line);
         
         line = 'commit;\n'
         Test.write(line)

@@ -58,4 +58,7 @@ def getProcedureReturnType(oid):
     DB.close
     DBConn.close
     
+    if proc == []:
+        return None
+    
     return proc[0][0]
