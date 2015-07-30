@@ -37,7 +37,7 @@ def getProcedureFromNumber(oid):
     proc = DB.fetchall()
     
     if proc == []:
-        raise Exception('Not a PLSQL procedure');
+        raise Exception('Not a PLSQL procedure ' + oid.__str__());
         # Later models can be kept here for each non PL/SQL procedure
     else:
         Procedure = ProcedureClass(proc[0][0], proc[0][1], proc[0][2])

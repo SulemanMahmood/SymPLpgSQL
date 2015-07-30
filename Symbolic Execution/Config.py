@@ -1,4 +1,4 @@
-dbname ='Postgres' 
+dbname ='Postbook' 
 database='test'
 user='suleman'
 password='123'
@@ -7,7 +7,7 @@ port='5432'
 
 Orignal_TraceFile = '/home/suleman/TraceLog.txt'
 TraceFile = '/home/suleman/TraceLog1.txt'
-MaximumStackDepth = 15
+MaximumStackDepth = 4
 
 Log = False
 

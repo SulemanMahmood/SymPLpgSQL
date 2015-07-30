@@ -10,7 +10,8 @@ class Table:
         self.DataHandler = DataHandler
         self.ColumnsByName = {}
         self.ColumsByIndex = {}
-        self.NamebyAttnum = {}      
+        self.NamebyAttnum = {}
+        self.DisabledConstraints = []      
         self.Rows = []
         self.UniqueConstraint = []
         self.CheckConstraint = []
@@ -53,7 +54,7 @@ class Table:
                         self.NamebyAttnum[AttNum] = [index, Name]
                         
                     if NotNull:
-                        self.CheckConstraint.append('Not\tT_NullTest\tCol '+ Type.__str__() + ' ' + Name+'\t')
+                        self.CheckConstraint.append('T_NullTest\tIS_NOT_NULL\tCol '+ Type.__str__() + ' ' + Name+'\t')
                     
                     index = index + 1
                 
@@ -79,17 +80,17 @@ class Table:
                         Index = self.NamebyAttnum[AttNum][0]
                         Type = self.getColumnTypeFromIndex(Index)
                         constraint.append(Index)
-                        self.CheckConstraint.append('Not\tT_NullTest\tCol ' + Type.__str__() + ' ' + self.NamebyAttnum[AttNum][1]+'\t')
+                        self.CheckConstraint.append('T_NullTest\tIS_NOT_NULL\tCol ' + Type.__str__() + ' ' + self.NamebyAttnum[AttNum][1]+'\t')
                     self.UniqueConstraint.append(constraint)
                 
-                CkCQuery = ("Select cons.conbin from pg_constraint cons, pg_class tab " +
+                CkCQuery = ("Select cons.conbin, cons.conname from pg_constraint cons, pg_class tab " +
                            "where tab.oid = " + self.oid +" " + 
                            "and cons.conrelid = tab.oid and contype = 'c'")
                 
                 DB.execute(CkCQuery)
                 
                 for cols in DB.fetchall():
-                    self.CheckConstraint.append(self.ConstraintStruct(cols[0]))
+                    self.CheckConstraint.append(self.ConstraintStruct(cols[0], cols[1]))
                     
                 for _, v in self.ColumsByIndex.items():
                     C = self.DataHandler.AddTableConstraint(v[0], v[1])
@@ -134,6 +135,9 @@ class Table:
                 
     def getRows(self):
         return self.Rows
+    
+    def getDisabledConstraints(self):
+        return self.DisabledConstraints
     
     def getName(self):
         return self.Name
@@ -219,6 +223,7 @@ class Table:
         T.UniqueConstraint = self.UniqueConstraint
         T.CheckConstraint = self.CheckConstraint
         T.FKConstraint = self.FKConstraint
+        T.DisabledConstraints = self.DisabledConstraints
         T.Name = self.Name
         
         for eachrow in self.Rows:
@@ -258,7 +263,7 @@ class Table:
         
         self.Rows = Rows 
         
-    def ConstraintStruct(self, S):
+    def ConstraintStruct(self, S, ConName):
         a = S.find('{')
         if a == -1:
             return ''
@@ -311,12 +316,90 @@ class Table:
             S = S[a:]
             op = Type.__str__() + ' ' + self.DataHandler.ProcessConstraintString(Type, S)
             
+        elif token == 'SCALARARRAYOPEXPR':
+            a = S.find(':opfuncid')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            operation = S[:a]
+            
+            a = S.find(':varattno')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            varattno = int(S[:a])
+            a = S.find(':vartype')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            vartype = S[:a]
+            var = 'Col ' + vartype + ' ' + self.NamebyAttnum[varattno][1]
+        
+            a = S.find(':array_typeid')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            # find array end
+            index = 0
+            count = 1
+            while count != 0:
+                if (S[index] == '{'):
+                    count = count + 1
+                elif (S[index] == '}'):
+                    count = count - 1
+                index = index + 1
+            
+            elements = S[:index]
+            elements = self.ConstraintStruct(elements, ConName)
+            elements = elements.split('\t')[:-1]
+            
+            op = self.MakeOrCondition(operation, var, elements)
+            
+            S = S[index:]
+            
+        elif token == 'NULLTEST':
+            a = S.find(':varattno')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            varattno = int(S[:a])
+            a = S.find(':vartype')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            vartype = S[:a]
+            var = 'Col ' + vartype + ' ' + self.NamebyAttnum[varattno][1]
+            
+            a = S.find(':nulltesttype')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            TestType = int(S[:a])
+            
+            if TestType == 1:
+                op = 'T_NullTest' + '\t' + 'IS_NOT_NULL' + '\t' + var          
+            
+            
         elif token == 'FUNCEXPR':
-            raise Exception ('Proceudure call in check constraint: Not Supported for now')
+            PrintLog('Disabling constraint because of FunctionCall ' + ConName)
+            self.DisabledConstraints.append(ConName)
         
         else:
             raise Exception ('Node not handled in check constrains ' + token)
         
-        res = self.ConstraintStruct(S)
+        res = self.ConstraintStruct(S, ConName)
         res = op + '\t' + res
         return res
+    
+    def MakeOrCondition(self, operation, var, elements):
+        if (len(elements) == 1):
+            return operation + '\t' + var + '\t' + elements[0]
+        else:
+            return 'or' + '\t' + operation + '\t' + var + '\t' + elements[0] + '\t' + self.MakeOrCondition(operation, var, elements[1:])

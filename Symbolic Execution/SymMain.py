@@ -7,7 +7,7 @@ DB = DBConn.cursor()
 DB.execute("Truncate Table Exception_Log")
 DB.execute("Truncate Table Test_Case_Exception_Log")
 DB.execute("commit")
-DB.execute("Select proname, proargtypes, prorettype from pg_proc p where prolang = 11899 -- and proname = 'sum9'")
+DB.execute("Select proname, proargtypes, prorettype from pg_proc p where prolang = 11899 -- and proname = 'checksositeprivs'")
 
 for proc in DB.fetchall():
     Procedure = ProcedureClass(proc[0], proc[1], proc[2])

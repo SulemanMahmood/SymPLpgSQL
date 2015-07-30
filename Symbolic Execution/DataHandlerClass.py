@@ -28,7 +28,7 @@ class DataHandlerClass:
         elif Type == 1700 :                # Numeric
             return Real(Name)
         
-        elif Type in [1082, 1184] :                # Date
+        elif Type in [1082, 1184, 1114] :                # Date
             return Int(Name)
         
         else:
@@ -132,7 +132,7 @@ class DataHandlerClass:
             else:
                 raise Exception('Exception in processig numeric')
         
-        elif Type in [1082, 1184]:      #Date
+        elif Type in [1082, 1184, 1114]:      #Date
             try:
                 value = Model.evaluate(Variable)
                 value = int(value.__str__())
@@ -165,7 +165,7 @@ class DataHandlerClass:
             raise Exception('Unknwon Data Type for Model ' + Type.__str__())
         
     def ProcessConstraintString(self,Type, S):
-        if Type == 1042:
+        if Type in [1042, 25]:
             a = S.find(' ')
             S = S[(a+1):]
             a = S.find(' ')

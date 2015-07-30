@@ -28,6 +28,13 @@ class TestCaseParser:
             TableName = State.getTableName(table)
             line = 'Alter Table '+ TableName + ' DISABLE TRIGGER ALL;\n'
             Test.write(line);
+            
+        # Disable Constraints
+        for table in State.getTableListForTestCase():
+            TableName = State.getTableName(table)
+            for Con in State.getDisabledConstraints(table):
+                line = 'Alter Table '+ TableName + ' DISABLE CONSTRAINT ' + Con + ';\n'
+                Test.write(line); 
         
         # Setup data for tables
         for table in State.getTableListForTestCase():
