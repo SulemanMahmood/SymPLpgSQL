@@ -9,7 +9,7 @@ Orignal_TraceFile = '/home/suleman/TraceLog.txt'
 TraceFile = '/home/suleman/TraceLog1.txt'
 MaximumStackDepth = 5
 
-Log = True
+Log = False
 
 def PrintLog(log):
     if Log == True:

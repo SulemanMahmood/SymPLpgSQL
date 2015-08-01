@@ -17,7 +17,7 @@ class DataHandlerClass:
             return Int(Name)
         
         elif Type == 16 :                  # Boolean type
-            return Int(Name)
+            return Bool(Name)
         
         elif Type in [25, 1043] :                  # Text type
             return Int(Name)
@@ -42,10 +42,10 @@ class DataHandlerClass:
             return int(Value)
 
         elif Type == 16:                    # Boolean type
-            if Value == 'True':
-                return 1
-            elif Value == 'False':
-                return 0
+            if Value in ['True', 'true', 'TRUE']:
+                return True
+            elif Value in ['False', 'false', 'FALSE']:
+                return False
             else:
                 raise Exception('Invalid Value for Boolean type')
 
@@ -73,19 +73,16 @@ class DataHandlerClass:
                     return value.__str__()
         
         elif Type == 16:                     # Boolean
-            try:
-                value = Model.evaluate(Variable)
-                value = int(value.__str__())
-            except:
+            value = Model.evaluate(Variable).__str__()
+            
+            if not value in ['True', 'False']:
                 value = randint(0,1)
-            finally:
-                if value == self.NullValue:
-                    return 'NULL'
-                else: 
-                    if value == 1:
-                        return 'True'
-                    else:
-                        return 'False'
+                if value == 1:
+                    value = 'True'
+                else:
+                    value = 'False'
+                    
+            return value.__str__()
             
         elif Type in [25, 1043]:                    # String / text
             try:
@@ -199,10 +196,16 @@ class DataHandlerClass:
             raise Exception('Type not handled in check constrains ' + Type.__str__())
         
     def ConditionHelper(self, Type, Name, CalledFromNullTest = False):
-        if Type == 16 and not CalledFromNullTest:
-                return '( ' + Name + ' == 1 )'  # means 1 represents true
-        else:
-            return Name
+        if CalledFromNullTest and Type == 16:
+            raise Exception('Nulltest on Boolean found')
+        return Name
+    
+    def SkipConstraint(self,Type, ConstraintType):
+        if ConstraintType == 'NotNULL':
+            if Type == 16:
+                return True
+            
+        return False
 
     def AddTableConstraint(self, Type, Name):
         if Type == 1042:

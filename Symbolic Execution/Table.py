@@ -54,7 +54,8 @@ class Table:
                         self.NamebyAttnum[AttNum] = [index, Name]
                         
                     if NotNull:
-                        self.CheckConstraint.append('T_NullTest\tIS_NOT_NULL\tCol '+ Type.__str__() + ' ' + Name+'\t')
+                        if not self.DataHandler.SkipConstraint(Type, 'NotNULL'):
+                            self.CheckConstraint.append('T_NullTest\tIS_NOT_NULL\tCol '+ Type.__str__() + ' ' + Name+'\t')
                     
                     index = index + 1
                 
@@ -80,7 +81,8 @@ class Table:
                         Index = self.NamebyAttnum[AttNum][0]
                         Type = self.getColumnTypeFromIndex(Index)
                         constraint.append(Index)
-                        self.CheckConstraint.append('T_NullTest\tIS_NOT_NULL\tCol ' + Type.__str__() + ' ' + self.NamebyAttnum[AttNum][1]+'\t')
+                        if not self.DataHandler.SkipConstraint(Type, 'NotNULL'):
+                            self.CheckConstraint.append('T_NullTest\tIS_NOT_NULL\tCol ' + Type.__str__() + ' ' + self.NamebyAttnum[AttNum][1]+'\t')
                     self.UniqueConstraint.append(constraint)
                 
                 CkCQuery = ("Select cons.conbin, cons.conname from pg_constraint cons, pg_class tab " +
@@ -389,8 +391,13 @@ class Table:
             a = S.find(' ')
             TestType = int(S[:a])
             
-            if TestType == 1:
-                op = 'T_NullTest' + '\t' + 'IS_NOT_NULL' + '\t' + var          
+            if not self.DataHandler.SkipConstraint(vartype, 'NotNULL'):
+                if TestType == 1:
+                    op = 'T_NullTest' + '\t' + 'IS_NOT_NULL' + '\t' + var
+                else:
+                    op = 'T_NullTest' + '\t' + 'IS_NULL' + '\t' + var
+            else:
+                op = 'True'     # to cover the Nulltest result when used in an expression                    
             
             
         elif token == 'FUNCEXPR':
