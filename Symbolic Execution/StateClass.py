@@ -696,7 +696,8 @@ class StateClass:
             ArgType = FunctionArg[0]
             self.Types[ArgName] = FunctionArg[0]
             self.State[self.Current_State_id]['Variables'][ArgName] = self.DataHandler.getZ3Object(ArgType, ArgName)
-            CallCondition = CallCondition.replace(' ' + FunctionArg[1] + ' ', " self.State.getZ3ObjectFromName('" + ArgName + "') ")
+            ArgExpr = self.DataHandler.ConditionHelper(ArgType, ArgName)
+            CallCondition = CallCondition.replace(' ' + ArgExpr + ' ', " self.State.getZ3ObjectFromName('" + ArgName + "') ")
             
         CallCondition = self.SubstituteVars(CallCondition)
         PrintLog(CallCondition)   

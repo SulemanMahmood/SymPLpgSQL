@@ -7,9 +7,9 @@ port='5432'
 
 Orignal_TraceFile = '/home/suleman/TraceLog.txt'
 TraceFile = '/home/suleman/TraceLog1.txt'
-MaximumStackDepth = 4
+MaximumStackDepth = 5
 
-Log = False
+Log = True
 
 def PrintLog(log):
     if Log == True:

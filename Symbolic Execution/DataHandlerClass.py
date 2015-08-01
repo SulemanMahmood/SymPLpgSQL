@@ -198,7 +198,7 @@ class DataHandlerClass:
         else:
             raise Exception('Type not handled in check constrains ' + Type.__str__())
         
-    def ConditionHelper(self, Type, Name, CalledFromNullTest):
+    def ConditionHelper(self, Type, Name, CalledFromNullTest = False):
         if Type == 16 and not CalledFromNullTest:
                 return '( ' + Name + ' == 1 )'  # means 1 represents true
         else:

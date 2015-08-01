@@ -90,8 +90,10 @@ class Table:
                 DB.execute(CkCQuery)
                 
                 for cols in DB.fetchall():
-                    self.CheckConstraint.append(self.ConstraintStruct(cols[0], cols[1]))
-                    
+                    resstring = self.ConstraintStruct(cols[0], cols[1])
+                    if resstring != None:
+                        self.CheckConstraint.append(resstring)
+                        
                 for _, v in self.ColumsByIndex.items():
                     C = self.DataHandler.AddTableConstraint(v[0], v[1])
                     if C != None:
@@ -355,6 +357,10 @@ class Table:
             
             elements = S[:index]
             elements = self.ConstraintStruct(elements, ConName)
+            
+            if elements == None:
+                return None
+            
             elements = elements.split('\t')[:-1]
             
             op = self.MakeOrCondition(operation, var, elements)
@@ -390,11 +396,14 @@ class Table:
         elif token == 'FUNCEXPR':
             PrintLog('Disabling constraint because of FunctionCall ' + ConName)
             self.DisabledConstraints.append(ConName)
+            return None
         
         else:
             raise Exception ('Node not handled in check constrains ' + token)
         
         res = self.ConstraintStruct(S, ConName)
+        if res == None:
+            return None
         res = op + '\t' + res
         return res
     
