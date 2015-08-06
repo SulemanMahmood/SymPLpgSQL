@@ -328,6 +328,13 @@ class Table:
             a = S.find(' ')
             operation = S[:a]
             
+            a = S.find(':useOr')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            UseOr = S[:a]
+            
             a = S.find(':varattno')
             S = S[a:]
             a = S.find(' ')
@@ -365,7 +372,7 @@ class Table:
             
             elements = elements.split('\t')[:-1]
             
-            op = self.MakeOrCondition(operation, var, elements)
+            op = self.MakeOrCondition(UseOr, operation, var, elements)
             
             S = S[index:]
             
@@ -405,6 +412,37 @@ class Table:
             self.DisabledConstraints.append(ConName)
             return None
         
+        elif token == 'COALESCE':
+            a = S.find(':coalescetype')
+            S = S[a:]
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            Type = S[:a]
+            
+            index = 0
+            count = 1
+            while count != 0:
+                if (S[index] == '{'):
+                    count = count + 1
+                elif (S[index] == '}'):
+                    count = count - 1
+                index = index + 1
+            
+            elements = S[:index]
+            elements = self.ConstraintStruct(elements, ConName)
+            
+            if elements == None:
+                return None
+            
+            elements = elements.split('\t')[:-1]
+            op = 'T_CoalesceExpr' + '\t' + Type + '\t'
+            for ele in elements:
+                op = op + 'ARGUMENT_START' + '\t' + ele + '\t' + 'ARGUMENT_END' + '\t'
+            op = op + 'T_CoalesceExpr_End' + '\t'
+            
+            S = S[index:]
+            
         else:
             raise Exception ('Node not handled in check constrains ' + token)
         
@@ -414,8 +452,11 @@ class Table:
         res = op + '\t' + res
         return res
     
-    def MakeOrCondition(self, operation, var, elements):
+    def MakeOrCondition(self,UseOr, operation, var, elements):
         if (len(elements) == 1):
             return operation + '\t' + var + '\t' + elements[0]
         else:
-            return 'or' + '\t' + operation + '\t' + var + '\t' + elements[0] + '\t' + self.MakeOrCondition(operation, var, elements[1:])
+            if UseOr == 'true':
+                return 'or' + '\t' + operation + '\t' + var + '\t' + elements[0] + '\t' + self.MakeOrCondition(UseOr, operation, var, elements[1:])
+            else:
+                return 'And' + '\t' + operation + '\t' + var + '\t' + elements[0] + '\t' + self.MakeOrCondition(UseOr, operation, var, elements[1:])

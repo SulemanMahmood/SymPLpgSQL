@@ -26,6 +26,7 @@ class StateClass:
         self.State[self.Current_State_id]['Loops'] = []
         self.State[self.Current_State_id]['IFs'] = []
         self.TempFunctionCalls = []
+        self.TempCoalesce = []
         self.FunctionCalls = []
         self.State[self.Current_State_id]['IgnoreNodes'] = False
         
@@ -325,16 +326,67 @@ class StateClass:
                 Condition, _ = self.MakeCondition(PartsCopy, 0, '')
                 return Condition, lookupindex + 1 
             
+            elif Node[0] == 'T_CoalesceExpr':
+                CoalesceResultType = int(Parts[i + 1])
+                i = i + 1
+                endindex = i
+                while (Parts[endindex] != 'T_CoalesceExpr_End'):
+                    endindex = endindex + 1
+                    
+                PartsCopy = Parts[i+1 : endindex]
+                
+                ArgList = []
+                for ele in PartsCopy:
+                    if ele == 'ARGUMENT_START':
+                        Arg = []
+                    elif ele == 'ARGUMENT_END':
+                        ArgList.append(Arg)
+                    else:
+                        Arg.append(ele)
+                
+                ProcessedArgs = []
+                for EachArg in ArgList:
+                    ProcessedArgs.append(self.MakeCondition(EachArg, 0, '')[0])
+                
+                self.Call_ID_Seq = self.Call_ID_Seq + 1 
+                CallID = self.Call_ID_Seq
+                
+                CoalesceResultName = self.TempCallStackNotoString(CallID) + 'COALESCERESULT'
+                CoalesceConditions = []
+                
+                for j in range(ProcessedArgs.__len__()):
+                    C = 'And('
+                    for k in range(j):
+                        C = C + ' ' + ProcessedArgs[k] + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C = C + ' ' + ProcessedArgs[j] + ' != ' + self.DataHandler.NullValue.__str__() + ' , '    
+                    C = C + ' ' + CoalesceResultName + ' == ' + ProcessedArgs[j] + ' )'
+                    CoalesceConditions.append(C)
+                    
+                CoalesceCondition = 'Or ( '
+                for eachCon in CoalesceConditions:
+                    CoalesceCondition = CoalesceCondition + eachCon + ' , '
+                CoalesceCondition = CoalesceCondition[:-2] + ')'
+                
+                Coalesce = {}
+                Coalesce['Type'] = CoalesceResultType
+                Coalesce['Name'] = CoalesceResultName
+                Coalesce['Condition'] = CoalesceCondition
+                self.TempCoalesce.append(Coalesce)
+                
+                Condition = Condition + ' ' + CoalesceResultName + ' '
+                return Condition, endindex + 1     
+                
             else:
                 raise Exception('Unkown Operator '+ Node[0])
             
             #Common operations for all operators
             Condition = Condition + ' )'
+                
             if i < len(Parts) and Parts[i] != '' and (Condition.count('(') == Condition.count(')')): #support for multi-clause conditions
                 Condition = 'And(' + Condition + ' , '
                 Condition, i = self.MakeCondition(Parts, i, Condition)
                 Condition = Condition + ' )'
-            
+                
             return Condition, i;
             
         else:
@@ -396,6 +448,21 @@ class StateClass:
                 Condition = Condition + self.DataHandler.ProcessConstant(Type, Value).__str__()
                 
             return Condition, i+1
+        
+    def SubstituteCoalesce(self,Condition):
+        C = ''
+        for Coalesce in self.TempCoalesce:
+            CoalType = Coalesce['Type']
+            CoalName = Coalesce['Name']
+            CoalCondition = Coalesce['Condition']
+            self.Types[CoalName] = CoalType
+            self.State[self.Current_State_id]['Variables'][CoalName] = self.DataHandler.getZ3Object(CoalType, CoalName)
+            Condition = Condition.replace(' ' + CoalName + ' ', " self.State.getZ3ObjectFromName('" + CoalName + "') ")
+            C = C + CoalCondition.replace(' ' + CoalName + ' ', " self.State.getZ3ObjectFromName('" + CoalName + "') ") + ' , '
+        
+        C = C[:-2]            
+        self.TempCoalesce = []
+        return Condition, C
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
         Table = self.Current_Tables[TableName]
@@ -447,8 +514,10 @@ class StateClass:
         #Check Constraints
         for eachCon in self.getCheckConsForTestCase(TableName):
             C, _ = self.MakeCondition(eachCon.split('\t'), 0, '')
+            C, CoalCondition = self.SubstituteCoalesce(C)
+            
             for i in range(Rows):
-                Condition = Condition + self.SubstituteTableRowForTestCase(C, TableName, i) + ', '
+                Condition = Condition + self.SubstituteTableRowForTestCase(C, TableName, i) + ', ' + self.SubstituteTableRowForTestCase(CoalCondition, TableName, i) + ', ' 
         
         #Foreign Key Handling                
         for ForeignKey in self.getFKeyConsForTestCase(TableName):
@@ -485,8 +554,10 @@ class StateClass:
         #Check Constraints        also contains not null part of primary key
         for eachCon in self.getCheckConsForTestCase(TableName):
             C, _ = self.MakeCondition(eachCon.split('\t'), 0, '')
+            C, CoalCondition = self.SubstituteCoalesce(C)
+            
             for i in range(Rows):
-                Condition = Condition + self.SubstituteTableRow(C, TableName, i) + ', '
+                Condition = Condition + self.SubstituteTableRow(C, TableName, i) + ', ' + self.SubstituteTableRow(CoalCondition, TableName, i) + ', '
                 
         #Foreign Key Handling                
         for ForeignKey in self.getFKeyConsForTestCase(TableName):
@@ -619,6 +690,10 @@ class StateClass:
                             
                             # Now Play with Target
                             Expr , _ = self.MakeCondition(Target, 0, '')
+                            
+                            if self.TempCoalesce != []:
+                                raise Exception('Unhandled Coalesce')
+                             
                             Expr = self.SubstituteOldVars(' ' + Expr + ' ')
                                 
                             for F in self.TempFunctionCalls:
@@ -657,6 +732,10 @@ class StateClass:
                         
                         # Now Play with Target
                         Expr , _ = self.MakeCondition(Target, 0, '')
+                        
+                        if self.TempCoalesce != []:
+                            raise Exception('Unhandled Coalesce')
+                        
                         Expr = self.SubstituteOldVars(' ' + Expr + ' ')
                             
                         for F in self.TempFunctionCalls:
@@ -762,7 +841,10 @@ class StateClass:
                 Condition, i = self.MakeCondition(Parts,1,'')
                 PrintLog(Condition)
                 
+                Condition, CoalCondition = self.SubstituteCoalesce(Condition)
+                
                 Condition = self.SubstituteOldVars(' ' + Condition + ' ')
+                CoalCondition = self.SubstituteOldVars(' ' + CoalCondition + ' ')
                 
                 for F in self.TempFunctionCalls:
                     F1, Condition = self.SubstituteInFunctionCall(F, Condition)
@@ -772,8 +854,8 @@ class StateClass:
                 
                 PrintLog(Condition)
                    
-                self.Current_Choices.AddChoice(Condition, None)
-                self.Current_Choices.AddChoice('Not('+Condition+')', None)
+                self.Current_Choices.AddChoice(Condition + ' , ' + CoalCondition , None)
+                self.Current_Choices.AddChoice('Not('+Condition+')'  + ' , ' + CoalCondition , None)
                 return False
             
         ######################################################################################################################
@@ -817,6 +899,10 @@ class StateClass:
             if ((i < len(Parts) and Parts[i] == 'Conditions')):
                 
                 Condition, _ = self.MakeCondition(Parts, ConditionStartingValue_i, '')
+                
+                if self.TempCoalesce != []:
+                    raise Exception('Unhandled Coalesce')
+                
                 Condition = self.SubstituteVars(Condition)
                 NoDataCond = 'Not('+Condition+')'
                 PrintLog(Condition)
@@ -936,6 +1022,10 @@ class StateClass:
             Target = self.CallStackNotoString() + Node[1]
 
             Expr, _ = self.MakeCondition(Parts, 2, '')
+            
+            if self.TempCoalesce != []:
+                raise Exception('Unhandled Coalesce')
+            
             Expr = self.SubstituteOldVars(' ' + Expr + ' ')
             
             for F in self.TempFunctionCalls:
@@ -978,6 +1068,10 @@ class StateClass:
             if ((i < len(Parts) and Parts[i] == 'Conditions')):
                 
                 Condition, i = self.MakeCondition(Parts, i+1, '')
+                
+                if self.TempCoalesce != []:
+                    raise Exception('Unhandled Coalesce')
+                
                 Condition = self.SubstituteVars(Condition)
                 NoDataCond = 'Not('+Condition+')'
                 
@@ -1146,6 +1240,10 @@ class StateClass:
                 Row.append(self.DataHandler.getZ3Object(Type, ResultName))
                 
                 Expr , _ = self.MakeCondition(Parts,1 , '')
+                
+                if self.TempCoalesce != []:
+                    raise Exception('Unhandled Coalesce')
+                
                 Expr = self.SubstituteOldVars(' ' + Expr + ' ')
                 
                 for FunctionCall in self.TempFunctionCalls:
