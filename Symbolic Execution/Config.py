@@ -1,4 +1,4 @@
-dbname ='Postbook' 
+dbname ='CourseRegister' 
 database='test'
 user='suleman'
 password='123'
@@ -9,11 +9,16 @@ Orignal_TraceFile = '/home/suleman/TraceLog.txt'
 TraceFile = '/home/suleman/TraceLog1.txt'
 MaximumStackDepth = 5
 
-Log = False
+Log = True
+LogLevel = 'Progress'
 
-def PrintLog(log):
+def PrintLog(log, level = 'Fine'):
     if Log == True:
-        print(log)
+        if LogLevel == 'Fine':
+            print(log)
+        elif LogLevel == 'Progress':
+            if level == 'Progress':  # or level == '' other log levels may be added later
+                print(log)
 #         T = open("Joinlog.txt", 'a')
 #         try:
 #             T.write(log.__str__() + '\n')

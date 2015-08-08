@@ -593,8 +593,10 @@ class StateClass:
             C, CoalCondition = self.SubstituteCoalesce(C)
             
             for i in range(Rows):
-                Condition = Condition + self.SubstituteTableRow(C, TableName, i) + ', ' + self.SubstituteTableRow(CoalCondition, TableName, i) + ', '
-                
+                Condition = Condition + self.SubstituteTableRow(C, TableName, i) + ', '
+                if CoalCondition != '':
+                    Condition = Condition + self.SubstituteTableRow(CoalCondition, TableName, i) + ', '
+                     
         #Foreign Key Handling                
         for ForeignKey in self.getFKeyConsForTestCase(TableName):
             T1 = self.getTable(TableName)

@@ -32,7 +32,7 @@ class SymbolicExecutor:
     def ExecuteTest(self, T):       
         DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
         DB = DBConn.cursor()
-        PrintLog(T)
+        PrintLog(T, 'Progress')
         try:
             self.CleanUp()
             DB.execute(open(T,'r').read())

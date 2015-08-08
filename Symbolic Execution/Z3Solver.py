@@ -52,15 +52,11 @@ class Z3Solver:
                     if Terminate:
                         break
                 else:
-                    code = 'self.S.add('+Condition+')'
                     self.S.push()
-                    PrintLog(code)
-                    exec(code)
+                    self.addConstraintToSolver(Condition)
                     Condition = self.State.AddAllBaseConditionsForTestCase('')
-                    code = 'self.S.add('+Condition+')'
-                    PrintLog(code)
                     self.S.push()   # establishing save point before adding base contraints
-                    exec(code)
+                    self.addConstraintToSolver(Condition)
                     PrintLog(self.S)
                     broken = True
                     break
@@ -75,6 +71,47 @@ class Z3Solver:
                     return self.CaseParser.getCase(M, self.State)
             else:
                 return None, None        #search completed
+            
+    def addConstraintToSolver(self, Condition):
+        while Condition not in [''] :
+            PrintLog('Condition is |' + Condition + '|')
+            a = Condition.find('(')    
+            b = Condition.find(',')
+            
+            
+            if a == -1:
+                if b != -1:
+                    a = b + 1
+            
+            if a == -1 and b == -1:
+                statement = Condition
+                Condition = ''            
+            elif b < a and b != -1:
+                statement = Condition[:b]
+                Condition = Condition[(b+1):].strip()
+            else:
+                index = a + 1
+                count = 1
+                while count != 0:
+                    if Condition[index] == '(':
+                        count = count + 1
+                    elif Condition[index] == ')':
+                        count = count - 1
+                        
+                    index = index + 1
+                
+                statement = Condition[:index]
+                Condition = Condition[index:]
+                
+                a = Condition.find(',')
+                if a == -1:
+                    statement = statement + Condition
+                    Condition = ''
+                Condition = Condition[(a+1):].strip()
+            
+            code = 'self.S.add('+statement+')'
+            PrintLog(code)  
+            exec(code)
             
     def get_first_test_case(self):
         BaseConstraint = self.State.AddAllBaseConditionsForTestCase('')

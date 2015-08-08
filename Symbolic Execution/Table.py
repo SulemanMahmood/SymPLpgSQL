@@ -461,7 +461,7 @@ class Table:
             op = 'T_CoalesceExpr' + '\t' + Type + '\t'
             for ele in elements:
                 op = op + 'ARGUMENT_START' + '\t' + ele + '\t' + 'ARGUMENT_END' + '\t'
-            op = op + 'T_CoalesceExpr_End' + '\t'
+            op = op + 'T_CoalesceExpr_End'
             
             S = S[index:]
             

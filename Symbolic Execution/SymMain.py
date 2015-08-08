@@ -7,11 +7,11 @@ DB = DBConn.cursor()
 DB.execute("Truncate Table Exception_Log")
 DB.execute("Truncate Table Test_Case_Exception_Log")
 DB.execute("commit")
-DB.execute("Select proname, proargtypes, prorettype from pg_proc p where prolang = 11899 -- and proname = 'avgcost'")
+DB.execute("Select proname, proargtypes, prorettype from pg_proc p where prolang = 11899 -- and proname = 'sum11'")
 
 for proc in DB.fetchall():
     Procedure = ProcedureClass(proc[0], proc[1], proc[2])
-    print(Procedure.getName());
+    PrintLog(Procedure.getName(), 'Progress')
     try:
         Executor = SymbolicExecutor(Procedure)
         Executor.run()
@@ -21,9 +21,9 @@ for proc in DB.fetchall():
         Error = (e.args).__str__()
         Error = Error[2:-3]
         Error = Error.replace('\'','-')
-        insertexpr = "Insert into Exception_Log (proname, status) values ('" + Procedure.getName() +"', '"+ Error +"')"
+        insertexpr = "Insert into Exception_Log (proname, status, solver_queries, testcases) values ('" + Procedure.getName() +"', '"+ Error + "', " + Executor.getZ3CheckCount().__str__() +", " + Executor.CaseParser.CaseNo.__str__() + ")"
         PrintLog(insertexpr)
         DB.execute(insertexpr)
         DB.execute("commit")
 
-print("\n\nALL DONE")
+PrintLog("\n\nALL DONE", 'Progress')
