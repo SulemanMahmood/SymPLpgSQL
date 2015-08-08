@@ -90,7 +90,9 @@ class StateClass:
                     for FK in self.getFKeyConsForTestCase(T):
                         T1 = self.getTable(T)
                         ForeignTable = T1.getForeignTableName(FK)
-                        if FinalList.__contains__(ForeignTable):
+                        if ForeignTable == T:
+                            remove = remove & True
+                        elif FinalList.__contains__(ForeignTable):
                             remove = remove & True
                         else:
                             remove = remove & False
@@ -102,6 +104,37 @@ class StateClass:
                     List.remove(T)
                     
         return FinalList
+    
+    def getTable(self, TableName, Path = None):
+        if self.Current_Tables.__contains__(TableName):
+            return self.Current_Tables[TableName]
+        else:
+            return self.AddNewTable(TableName, Path)
+        
+    def AddNewTable(self, TableName, Path = None):
+        T = Table(TableName, self.DataHandler)
+        for state in range(self.Current_State_id + 1):
+            T1 = T.Copy()
+            self.State[state]['Tables'][TableName] = T1
+        
+        #Adding tables referenced by foreign key relations
+        if Path == None:
+            Path = []
+            
+        Path.append(TableName)
+        
+        ForeignTables = T.getForeignTables()
+        
+        for FTable in ForeignTables:
+            if FTable == TableName:
+                pass
+            elif FTable in Path:
+                T.DisableFKConstraint(FTable)
+            else:
+                self.getTable(FTable, Path)
+        
+        Path.pop()
+        return self.Current_Tables[TableName]
     
     def getTableName(self,table):
         return self.getTable(table).getName()
@@ -465,6 +498,7 @@ class StateClass:
         return Condition, C
     
     def SubstituteTableRow(self, Condition, TableName, RowNum):
+        Condition = ' ' + Condition + ' '
         Table = self.Current_Tables[TableName]
         for Name in Table.getColumnNameList():
             Condition = Condition.replace(' '+Name+' ', " self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
@@ -517,7 +551,9 @@ class StateClass:
             C, CoalCondition = self.SubstituteCoalesce(C)
             
             for i in range(Rows):
-                Condition = Condition + self.SubstituteTableRowForTestCase(C, TableName, i) + ', ' + self.SubstituteTableRowForTestCase(CoalCondition, TableName, i) + ', ' 
+                Condition = Condition + self.SubstituteTableRowForTestCase(C, TableName, i) + ', ' 
+                if CoalCondition != '':
+                    Condition = Condition + self.SubstituteTableRowForTestCase(CoalCondition, TableName, i) + ', ' 
         
         #Foreign Key Handling                
         for ForeignKey in self.getFKeyConsForTestCase(TableName):
@@ -785,25 +821,6 @@ class StateClass:
         
         return F, Expr
     
-    def getTable(self, TableName):
-        if self.Current_Tables.__contains__(TableName):
-            return self.Current_Tables[TableName]
-        else:
-            return self.AddNewTable(TableName)
-        
-    def AddNewTable(self, TableName):
-        T = Table(TableName, self.DataHandler)
-        for state in range(self.Current_State_id + 1):
-            T1 = T.Copy()
-            self.State[state]['Tables'][TableName] = T1
-        
-        #Adding tables referenced by foreign key relations
-        ForeignTables = T.getForeignTables()
-        for FTable in ForeignTables:
-            self.getTable(FTable)
-        
-        return self.Current_Tables[TableName]
-    
     def ProcessLine(self,Line, AdvanceState = True):
         if AdvanceState == True:
             self.AdvanceState()
@@ -871,8 +888,8 @@ class StateClass:
             if IF['COMPLEX'] == True:
                 IF['COMPLEX'] = True
                 self.State[self.Current_State_id]['IFs'].append(IF)
-                Condition = ' self.State.getZ3ObjectForResultElement( ' + (self.Current_State_id - 1).__str__() + ' , 0, 0) == ' + self.DataHandler.ProcessConstant(16,'True').__str__() + ' )'
-                NotCondition = ' self.State.getZ3ObjectForResultElement( ' + (self.Current_State_id - 1).__str__() + ' , 0, 0) == ' + self.DataHandler.ProcessConstant(16,'False').__str__() + ' )'
+                Condition = ' self.State.getZ3ObjectForResultElement( ' + (self.Current_State_id - 1).__str__() + ' , 0, 0) == ' + self.DataHandler.ProcessConstant(16,'True').__str__() 
+                NotCondition = ' self.State.getZ3ObjectForResultElement( ' + (self.Current_State_id - 1).__str__() + ' , 0, 0) == ' + self.DataHandler.ProcessConstant(16,'False').__str__()
                 self.Current_Choices.AddChoice(Condition, None)
                 self.Current_Choices.AddChoice(NotCondition, None)
                 return False
@@ -887,8 +904,8 @@ class StateClass:
         elif Parts[0] == 'T_SeqScan' or Parts[0] == 'T_IndexScan':
             TableName = Parts[1]
             i = 2
+            ColumnList = []
             if Parts[i] == 'TargetList':
-                ColumnList = []
                 i = i+1
                 while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
                     ColumnList.append(Parts[i])
@@ -1057,10 +1074,10 @@ class StateClass:
             InnerPlanTop = self.Current_State_id - 1
             OuterPlanTop = self.getPlanBottom(InnerPlanTop) - 1
             
-            
-            if Parts[2] == 'TargetList':
-                ColumnList = []
-                i = 3
+            i = 2
+            ColumnList = []
+            if Parts[i] == 'TargetList':
+                i = i + 1
                 while (i < len(Parts) and Parts[i] != 'Conditions' and Parts[i] != '') :
                     ColumnList.append(Parts[i])
                     i = i+1

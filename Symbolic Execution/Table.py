@@ -101,7 +101,7 @@ class Table:
                     if C != None:
                         self.CheckConstraint.append(C)
                         
-                FKQuery = ("Select cons.conkey, tab2.oid, cons.confkey " +
+                FKQuery = ("Select cons.conkey, tab2.oid, cons.confkey, cons.conname " +
                            "from pg_constraint cons, pg_class tab, pg_class tab2 " + 
                            "where cons.conrelid = tab.oid and contype = 'f' " + 
                            "and tab.oid = " + self.oid +" and cons.confrelid = tab2.oid" )
@@ -113,6 +113,7 @@ class Table:
                     Fk['Column'] = cons[0][0]
                     Fk['ForeignTable'] = cons[1].__str__()
                     Fk['ForeignColumn'] = cons[2][0]
+                    Fk['Name'] = cons[3]
                     self.FKConstraint.append(Fk)
                 
                 OTQuery = ("Select contype from pg_constraint cons, pg_class tab " +
@@ -196,6 +197,16 @@ class Table:
         for FK in self.FKConstraint:
             TableList.append(FK['ForeignTable'])
         return TableList
+    
+    def DisableFKConstraint(self, ForeignTableOID):
+        FKs = []
+        for FK in self.FKConstraint:
+            FKs.append(FK)
+        
+        for FK in FKs:
+            if FK['ForeignTable'] == ForeignTableOID :
+                self.FKConstraint.remove(FK)
+                self.DisabledConstraints.append(FK['Name'])       # Has irreverible effect on Data Set
     
     def getForeignTableName(self, FK):
         return FK['ForeignTable']
@@ -316,9 +327,20 @@ class Table:
             S = S[(a+1):]
             a = S.find(' ')
             Type = int(S[:a])
-            a = S.find(':constvalue')
+            
+            a = S.find(':constisnull')
             S = S[a:]
-            op = Type.__str__() + ' ' + self.DataHandler.ProcessConstraintString(Type, S)
+            a = S.find(' ')
+            S = S[(a+1):]
+            a = S.find(' ')
+            isNULL = S[:a]
+            
+            if isNULL == 'true':
+                op = Type.__str__() + ' ' + 'NULL'
+            else:
+                a = S.find(':constvalue')
+                S = S[a:]
+                op = Type.__str__() + ' ' + self.DataHandler.ProcessConstraintString(Type, S)
             
         elif token == 'SCALARARRAYOPEXPR':
             a = S.find(':opfuncid')
