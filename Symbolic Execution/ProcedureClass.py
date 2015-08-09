@@ -37,8 +37,7 @@ def getProcedureFromNumber(oid):
     proc = DB.fetchall()
     
     if proc == []:
-        raise Exception('Not a PLSQL procedure ' + oid.__str__());
-        # Later models can be kept here for each non PL/SQL procedure
+        return None
     else:
         Procedure = ProcedureClass(proc[0][0], proc[0][1], proc[0][2])
         PrintLog(Procedure.getName());
@@ -62,3 +61,23 @@ def getProcedureReturnType(oid):
         return None
     
     return proc[0][0]
+
+def getNoOfArgsForProcedure(oid):
+    DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
+    DB = DBConn.cursor()
+    DB.execute("Select proargtypes from pg_proc p where oid = "+oid.__str__()+" ")
+
+    proc = DB.fetchall()
+    DB.close
+    DBConn.close
+    
+    ArgTypes = proc[0][0]
+    ArgTypes = ArgTypes.split(' ')
+    
+    return len(ArgTypes)
+
+def getReturnValueFromModel(oid, Arglist, State):
+    if oid == 1574:
+        return State.getSequence(Arglist[0].__str__()).nextval()
+    else:
+        raise Exception('Unmodeled non-PLpgSQL procedure call ' + oid.__str__())

@@ -63,6 +63,14 @@ class TestCaseParser:
 #             TableName = State.getTableName(table)
 #             line = 'Alter Table '+ TableName + ' ENABLE TRIGGER ALL;\n'
 #             Test.write(line);
+
+        # Set Sequence Staeting Values
+        for Seq in State.getSequenceListForTestCase():
+            S = State.getSequence(Seq)
+            
+            line = "Alter Sequence " + S.getName() + " Start with "
+            line = line + self.DataHandler.getValue(Model, S.SequenceDataType , S.getStartValue()) + ';\n'                        
+            Test.write(line);
         
         line = 'commit;\n'
         Test.write(line)

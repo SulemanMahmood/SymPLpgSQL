@@ -231,7 +231,7 @@ class Table:
                 
     def Copy(self):
         # Makes a Partly Shallow Partly Deep Copy of the Table
-        T = Table(self.oid, self.DataHandler, self.IsADBTable, False)
+        T = Table(self.oid, self.DataHandler, self.IsADBTable, IsNotCopy = False)
         T.ColumnsByName = self.ColumnsByName
         T.ColumsByIndex = self.ColumsByIndex
         T.NamebyAttnum = self.NamebyAttnum

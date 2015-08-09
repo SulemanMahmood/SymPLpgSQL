@@ -55,6 +55,9 @@ class DataHandlerClass:
         
         elif Type == 1042:                  # char type
             return ord(Value)
+        
+        elif Type == 2205:                  # Sequence oid type
+            return Value
 
         else:
             raise Exception('Unknown Data Type In Constant Processing ' + Type.__str__())

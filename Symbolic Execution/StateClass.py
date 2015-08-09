@@ -3,6 +3,7 @@ from ChoicesClass import ChoicesClass
 from CombinationGenerater import CombinationGenerator
 from Config import *
 from ProcedureClass import *
+from SequenceClass import *
 
 class StateClass:    
     
@@ -19,16 +20,18 @@ class StateClass:
         self.State[self.Current_State_id]['Call_ID'] = 0
         self.State[self.Current_State_id]['Variables'] = {}
         self.State[self.Current_State_id]['Tables'] = {}
+        self.State[self.Current_State_id]['Sequences'] = {}
         self.State[self.Current_State_id]['CallStackNumber'] = 0
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
         #self.State[self.Current_State_id]['Results']     Added Later
         #self.State[self.Current_State_id]['Node']        Added Later
         self.State[self.Current_State_id]['Loops'] = []
         self.State[self.Current_State_id]['IFs'] = []
+        self.State[self.Current_State_id]['IgnoreNodes'] = False
+        
         self.TempFunctionCalls = []
         self.TempCoalesce = []
         self.FunctionCalls = []
-        self.State[self.Current_State_id]['IgnoreNodes'] = False
         
         self.Types = {}
         self.Current_Variables = {}
@@ -69,6 +72,11 @@ class StateClass:
         self.Current_Variables = self.State[self.Current_State_id]['Variables']
         self.Current_Tables = self.State[self.Current_State_id]['Tables']
         self.Current_Choices = self.State[self.Current_State_id]['Choices']
+        self.Current_Sequences = self.State[self.Current_State_id]['Sequences']
+        
+        # for sequences the value must be reset to the state starting value
+        for Seq in self.Current_Sequences:
+            self.Current_Sequences[Seq].ResetSequence()
         
     def getTableListForTestCase(self):
         List = []
@@ -136,6 +144,25 @@ class StateClass:
         Path.pop()
         return self.Current_Tables[TableName]
     
+    def getSequenceListForTestCase(self):
+        List = []
+        for k in self.State[0]['Sequences']:
+            List.append(k) 
+        return List
+    
+    def getSequence(self, oid):
+        if self.Current_Sequences.__contains__(oid):
+            return self.Current_Sequences[oid]
+        else:
+            return self.AddNewSequence(oid)
+    
+    def AddNewSequence(self,oid):
+        S = Sequence(oid, self.DataHandler)
+        for state in range(self.Current_State_id + 1):
+            S1 = S.Advance()
+            self.State[state]['Sequences'][oid] = S1
+        return self.Current_Sequences[oid]
+        
     def getTableName(self,table):
         return self.getTable(table).getName()
     
@@ -193,6 +220,9 @@ class StateClass:
     
     def getZ3ObjectFirstRowColumnFromPreviousResult(self,index):
         return self.State[self.Current_State_id - 1]['Results'].getZ3ObjectForTableElement(index,0)
+    
+    def getReturnValueFromModel(self,oid,ArgList):
+        return getReturnValueFromModel(oid,ArgList, self)
         
     def isPreviousResultNULL(self):
         if self.State[self.Current_State_id - 1]['Results'] == None:
@@ -210,6 +240,7 @@ class StateClass:
         self.State[self.Current_State_id]['Call_ID'] = self.State[Old_State_id]['Call_ID']
         self.State[self.Current_State_id]['Variables'] = {}
         self.State[self.Current_State_id]['Tables'] = {}
+        self.State[self.Current_State_id]['Sequences'] = {}
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
         self.State[self.Current_State_id]['CallStackNumber'] = self.State[Old_State_id]['CallStackNumber']
         self.State[self.Current_State_id]['IgnoreNodes'] = self.State[Old_State_id]['IgnoreNodes']
@@ -222,6 +253,9 @@ class StateClass:
             
         for K in self.State[Old_State_id]['Tables']:
             self.State[self.Current_State_id]['Tables'][K] = self.State[Old_State_id]['Tables'][K].Copy()
+        
+        for K in self.State[Old_State_id]['Sequences']:
+            self.State[self.Current_State_id]['Sequences'][K] = self.State[Old_State_id]['Sequences'][K].Advance()
             
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
             
@@ -295,7 +329,7 @@ class StateClass:
                 Condition = Condition + ' <= '
                 Condition, i = self.MakeCondition(Parts, i, Condition)
             
-            elif Node[0] in ['177']:
+            elif Node[0] in ['177', '463']:
                 Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
                 Condition = Condition + ' + '
                 Condition, i = self.MakeCondition(Parts, i, Condition)
@@ -438,42 +472,62 @@ class StateClass:
             
             elif Node[0] == 'FunctionCall':
                 Proc = getProcedureFromNumber(Node[1]) 
-                ReturnType = Proc.getReturnType()
                 
-                #Making Function Call Condition
-                self.Call_ID_Seq = self.Call_ID_Seq + 1 
-                CallID = self.Call_ID_Seq
+                if Proc != None:   # PL/SQL procedure calls
+                    #Making Function Call Condition
+                    ReturnType = Proc.getReturnType()
                     
-                RetturnVariableName = self.TempCallStackNotoString(CallID) + 'RETURNVARIABLE'
-                
-                CallCondition = ''
-                FunctionArgNames = []
-                
-                i = i + 1   # point to next node to be processed
-                
-                for Arg in Proc.getArgList() :
-                    processedarg, i = self.MakeCondition(Parts, i, '')
-                    ArgName = self.TempCallStackNotoString(CallID) + Arg[1]
-                    Arg[1] = ArgName
-                    FunctionArgNames.append(Arg)
-                    C = ' ' + ArgName + " == " + processedarg
-                    CallCondition = CallCondition + C + ' , '
+                    self.Call_ID_Seq = self.Call_ID_Seq + 1 
+                    CallID = self.Call_ID_Seq
+                        
+                    RetturnVariableName = self.TempCallStackNotoString(CallID) + 'RETURNVARIABLE'
                     
-                CallCondition = CallCondition[:-2]
+                    CallCondition = ''
+                    FunctionArgNames = []
+                    
+                    i = i + 1   # point to next node to be processed
+                    
+                    for Arg in Proc.getArgList() :
+                        processedarg, i = self.MakeCondition(Parts, i, '')
+                        ArgName = self.TempCallStackNotoString(CallID) + Arg[1]
+                        Arg[1] = ArgName
+                        FunctionArgNames.append(Arg)
+                        C = ' ' + ArgName + " == " + processedarg
+                        CallCondition = CallCondition + C + ' , '
+                        
+                    CallCondition = CallCondition[:-2]
+                    
+                    FunctionCall = {}
+                    FunctionCall['FunctionID'] = Node[1]
+                    FunctionCall['CallCondition'] = CallCondition
+                    FunctionCall['ReturnVariableName'] = RetturnVariableName
+                    FunctionCall['ReturnType'] = ReturnType
+                    FunctionCall['ReturnStateID'] = None
+                    FunctionCall['Call_ID'] = CallID
+                    FunctionCall['FunctionArgNames'] = FunctionArgNames
+                    
+                    self.TempFunctionCalls.append(FunctionCall)
+                    
+                    Condition = Condition + ' ' + self.DataHandler.ConditionHelper(ReturnType, RetturnVariableName, CalledFromNullTest)
+                    i = i - 1  # to conform with logic of two part nodes
                 
-                FunctionCall = {}
-                FunctionCall['FunctionID'] = Node[1]
-                FunctionCall['CallCondition'] = CallCondition
-                FunctionCall['ReturnVariableName'] = RetturnVariableName
-                FunctionCall['ReturnType'] = ReturnType
-                FunctionCall['ReturnStateID'] = None
-                FunctionCall['Call_ID'] = CallID
-                FunctionCall['FunctionArgNames'] = FunctionArgNames
-                
-                self.TempFunctionCalls.append(FunctionCall)
-                
-                Condition = Condition + ' ' + self.DataHandler.ConditionHelper(ReturnType, RetturnVariableName, CalledFromNullTest)
-                i = i - 1  # to conform with logic of two part nodes
+                else:
+                    # Not a PLSQL function. Model it.
+                    FunctionOid = Node[1]
+
+                    ReturnType = getProcedureReturnType(FunctionOid)    #  1) get return type
+                    NoOfArgs = getNoOfArgsForProcedure(FunctionOid)     #  2) get no of Args
+
+                    i = i + 1   # point to next node to be processed
+                    ArgList = '[ '                                      #  3) process ArgList
+                    for _ in range(NoOfArgs) :
+                        processedarg, i = self.MakeCondition(Parts, i, '')
+                        ArgList = ArgList + processedarg + ' , '
+                    ArgList = ArgList[:-2] + ' ]'
+            
+#                   5) append the string with function self.State.getReturnValueFromModel
+                    Condition = Condition + ' ' + "self.State.getReturnValueFromModel(" + FunctionOid + ", " + ArgList + " )"
+                    i = i - 1  # to conform with logic of two part nodes
             
             else:   #Constants
                 Type = int(Node[0])
@@ -1288,7 +1342,7 @@ class StateClass:
                 self.TempFunctionCalls = []
                 
                 
-                Condition = "self.State.getZ3ObjectForResultElement( " + self.Current_State_id.__str__() + " , " + (0).__str__() + " , " + (0).__str__() +" )" + ' == ' + Expr
+                Condition = "( self.State.getZ3ObjectForResultElement( " + self.Current_State_id.__str__() + " , " + (0).__str__() + " , " + (0).__str__() +" )" + ' == ' + Expr + ')'
                 
                 
             else:   # Node is a constant
