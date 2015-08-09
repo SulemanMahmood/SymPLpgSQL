@@ -221,6 +221,9 @@ class StateClass:
     def getZ3ObjectFirstRowColumnFromPreviousResult(self,index):
         return self.State[self.Current_State_id - 1]['Results'].getZ3ObjectForTableElement(index,0)
     
+    def getZ3ObjectForSequenceStartForTestCase(self,oid):
+        return self.State[0]['Sequences'][oid].getStartValue()
+    
     def getReturnValueFromModel(self,oid,ArgList):
         return getReturnValueFromModel(oid,ArgList, self)
         
@@ -625,7 +628,7 @@ class StateClass:
                     C = C + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+Column.__str__()+", "+i.__str__()+")" + " == " + "self.State.getZ3ObjectForTableElementForTestCase('"+ForeignTable+"', "+ForeginColumn.__str__()+", "+j.__str__()+")" + ", "
                 C = C + "self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', "+Column.__str__()+", "+i.__str__()+")" + " == " + self.DataHandler.NullValue.__str__() + "), "
                 Condition = Condition + C
-        
+            
         return Condition
     
     def AddConstraints(self, Condition, TableName):
@@ -684,12 +687,22 @@ class StateClass:
         
     def getNumberOfRows(self, TableName):
         return self.Current_Tables[TableName].getNumberOfRows()
+    
+    def AddSequenceConstraintsForTestCase(self, Condition):
+        # Sequence Maximum and Minimum Value Constraints
+        for Seq in self.getSequenceListForTestCase():
+            S = self.getSequence(Seq)
+            C = "And(self.State.getZ3ObjectForSequenceStartForTestCase('" + Seq + "') >=  " + S.getMinValue().__str__() + ", "
+            C = C + "self.State.getZ3ObjectForSequenceStartForTestCase('" + Seq + "') <=  " + (S.getMaxValue() - S.getValue()).__str__() + " ) , " 
+            Condition = Condition + C
+        return Condition
 
     def AddAllBaseConditionsForTestCase(self, BaseConstraint):
         for table in self.getTableListForTestCase():
             BaseConstraint = self.AddConstraintsForTestCase(BaseConstraint, table)
         
         BaseConstraint = self.AddTypeConstraintsOnVariablesForTestCase(BaseConstraint)
+        BaseConstraint = self.AddSequenceConstraintsForTestCase(BaseConstraint)
         
         return BaseConstraint[:-2]
     

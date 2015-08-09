@@ -68,7 +68,7 @@ class TestCaseParser:
         for Seq in State.getSequenceListForTestCase():
             S = State.getSequence(Seq)
             
-            line = "Alter Sequence " + S.getName() + " Start with "
+            line = "Alter Sequence " + S.getName() + " Restart with "
             line = line + self.DataHandler.getValue(Model, S.SequenceDataType , S.getStartValue()) + ';\n'                        
             Test.write(line);
         
