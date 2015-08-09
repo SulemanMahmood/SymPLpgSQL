@@ -4,13 +4,14 @@ user='suleman'
 password='123'
 host='localhost'
 port='5432'
+TestCasePath = '/home/suleman/Desktop/TestCases/'
 
 Orignal_TraceFile = '/home/suleman/TraceLog.txt'
 TraceFile = '/home/suleman/TraceLog1.txt'
 MaximumStackDepth = 5
 
 Log = True
-LogLevel = 'Progress'
+LogLevel = 'Fine'
 
 def PrintLog(log, level = 'Fine'):
     if Log == True:

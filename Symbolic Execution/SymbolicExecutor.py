@@ -70,4 +70,7 @@ class SymbolicExecutor:
         T.close
         
     def getZ3CheckCount(self):
-        return self.Z3.getCheckCount()
+        try:
+            return self.Z3.getCheckCount()
+        except:
+            return 0

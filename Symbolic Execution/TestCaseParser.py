@@ -1,8 +1,7 @@
 from reportlab.lib.validators import isString
+from Config import *
 
 class TestCaseParser:
-
-    TestCasePath = './TestCases/'
     
     def __init__(self,Procedure, DataHandler):
         self.CaseNo = 0
@@ -13,7 +12,7 @@ class TestCaseParser:
         self.CaseNo = self.CaseNo+1
                 
     def getCase(self, Model, State):
-        T = self.TestCasePath + self.Procedure.getName() + self.Procedure.getNoOfInputs().__str__() + "_Data" + self.CaseNo.__str__() + ".sql"
+        T = TestCasePath + self.Procedure.getName() + self.Procedure.getNoOfInputs().__str__() + "_Data" + self.CaseNo.__str__() + ".sql"
         
         Test = open(T,'w')
         
@@ -71,7 +70,7 @@ class TestCaseParser:
         Test.close
         DataFile = T;
         
-        T = self.TestCasePath + self.Procedure.getName() + self.Procedure.getNoOfInputs().__str__() + '_Case' + self.CaseNo.__str__() + '.sql'
+        T = TestCasePath + self.Procedure.getName() + self.Procedure.getNoOfInputs().__str__() + '_Case' + self.CaseNo.__str__() + '.sql'
         Test = open(T,'w')
         
         # Setup procedure Executeion
