@@ -79,5 +79,7 @@ def getNoOfArgsForProcedure(oid):
 def getReturnValueFromModel(oid, Arglist, State):
     if oid == 1574:
         return State.getSequence(Arglist[0].__str__()).nextval()
+    elif oid == 480:
+        return Arglist[0]
     else:
         raise Exception('Unmodeled non-PLpgSQL procedure call ' + oid.__str__())
