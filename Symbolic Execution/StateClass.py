@@ -522,7 +522,7 @@ class StateClass:
                     NoOfArgs = getNoOfArgsForProcedure(FunctionOid)     #  2) get no of Args
 
                     i = i + 1   # point to next node to be processed
-                    ArgList = '[ '                                      #  3) process ArgList
+                    ArgList = '[  '                                      #  3) process ArgList
                     for _ in range(NoOfArgs) :
                         processedarg, i = self.MakeCondition(Parts, i, '')
                         ArgList = ArgList + processedarg + ' , '

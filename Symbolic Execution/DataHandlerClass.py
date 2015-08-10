@@ -257,6 +257,9 @@ class DataHandlerClass:
                 self.StringsByIndex[Value] = NewString
                 self.StringsByValue[NewString] = Value
             return
+        
+    def getString(self,index):
+        return self.StringsByIndex[index]
             
     def GenerateNewString(self):
         i = 0;
