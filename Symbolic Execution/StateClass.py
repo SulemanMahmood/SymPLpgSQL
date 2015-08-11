@@ -495,10 +495,14 @@ class StateClass:
                         ArgName = self.TempCallStackNotoString(CallID) + Arg[1]
                         Arg[1] = ArgName
                         FunctionArgNames.append(Arg)
-                        C = ' ' + ArgName + " == " + processedarg
-                        CallCondition = CallCondition + C + ' , '
+                        if not self.DataHandler.SkipConstraint(Arg[0], processedarg):
+                            C = ' ' + ArgName + " == " + processedarg
+                            CallCondition = CallCondition + C + ' , '
                         
                     CallCondition = CallCondition[:-2]
+                    
+                    if CallCondition != '':
+                        CallCondition = '( ' + CallCondition +' )'
                     
                     FunctionCall = {}
                     FunctionCall['FunctionID'] = Node[1]
@@ -812,7 +816,7 @@ class StateClass:
                             
                             TableRows[row].append(self.DataHandler.getZ3Object(Type, ResultName))
                             
-                            C = "self.State.getZ3ObjectForResultElement( " + self.Current_State_id.__str__() + " , " + ColIndex.__str__() + " , " + row.__str__() +" )" + ' == ' + Expr
+                            C = "( self.State.getZ3ObjectForResultElement( " + self.Current_State_id.__str__() + " , " + ColIndex.__str__() + " , " + row.__str__() +" )" + ' == ' + Expr + ')'
                             PrintLog(C)
                             Condition = Condition + C + ", "
                             break
@@ -1536,9 +1540,9 @@ class StateClass:
                 #set call id to returning function call id
                 self.State[self.Current_State_id]['Call_ID'] = self.State[self.Current_State_id]['CallStack'][-1]['Call_ID']
                 
-                Condition = ' ' + ReturnVariableName + ' '
+                Condition = '( ' + ReturnVariableName + ' '
                 Condition = self.SubstituteVars(Condition)
-                Condition = Condition + ' == self.State.getZ3ObjectForResultElement( + ' + ReturnStateID.__str__() + ' , 0, 0)'
+                Condition = Condition + ' == self.State.getZ3ObjectForResultElement( + ' + ReturnStateID.__str__() + ' , 0, 0) )'
                 
                 T = Table('Result' + self.Current_State_id.__str__(),self.DataHandler, False, False);
                 TableRows = []

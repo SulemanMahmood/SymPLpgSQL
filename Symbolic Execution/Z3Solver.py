@@ -128,10 +128,9 @@ class Z3Solver:
         ProcessFurther = self.State.ProcessLine(Line)
         if ProcessFurther:
             Condition, _ = self.State.NextChoice()
-            code = 'self.S.add('+Condition+')'
             self.S.push()
-            PrintLog(code)
-            exec(code)
+            self.addConstraintToSolver(Condition)
+            PrintLog(self.S)
             return True
         else:
             return False

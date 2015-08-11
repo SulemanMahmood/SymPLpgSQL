@@ -48,19 +48,26 @@ def getProcedureFromNumber(oid):
     return Procedure
             
 def getProcedureReturnType(oid):
-    DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
-    DB = DBConn.cursor()
-    DB.execute("Select prorettype from pg_proc p where oid = " + oid +" ")
-
-    proc = DB.fetchall()
-
-    DB.close
-    DBConn.close
+    if oid in ['Not', 'NOT', 'not']:
+        return 16
+    elif oid in ['And', 'AND', 'and']:
+        return 16
+    elif oid in ['Or', 'OR', 'or']:
+        return 16
+    else:
+        DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
+        DB = DBConn.cursor()
+        DB.execute("Select prorettype from pg_proc p where oid = " + oid +" ")
     
-    if proc == []:
-        return None
+        proc = DB.fetchall()
     
-    return proc[0][0]
+        DB.close
+        DBConn.close
+        
+        if proc == []:
+            return None
+        
+        return proc[0][0]
 
 def getNoOfArgsForProcedure(oid):
     DBConn = psycopg2.connect(dbname=dbname, database=database, user=user, password=password, host=host, port=port)
