@@ -68,7 +68,7 @@ class Table:
                     constraint = []
                     for AttNum in cons[0]:
                         constraint.append(self.NamebyAttnum[AttNum][0])
-                    self.UniqueConstraint.append(constraint)    
+                    self.UniqueConstraint.append(constraint)        
                 
                 PKQuery = ("Select cons.conkey from pg_constraint cons, pg_class tab " +
                            "where tab.oid = " + self.oid +" " + 
@@ -84,6 +84,25 @@ class Table:
                         if not self.DataHandler.SkipConstraint(Type, 'NotNULL'):
                             self.CheckConstraint.append('T_NullTest\tIS_NOT_NULL\tCol ' + Type.__str__() + ' ' + self.NamebyAttnum[AttNum][1]+'\t')
                     self.UniqueConstraint.append(constraint)
+                    
+                UkQuery2 = ("Select indkey from pg_index where indrelid = "  + self.oid + 
+                            " and indisunique = 't' ")
+                DB.execute(UkQuery2)
+
+                for cons in DB.fetchall():
+                    constraint = []
+                    for AttNum in cons[0].split():
+                        constraint.append(self.NamebyAttnum[int(AttNum)][0])
+                    
+                    AddCon = True
+                    for UKcons in self.UniqueConstraint:
+                        if UKcons == constraint:
+                            AddCon = AddCon and False
+                        else:
+                            AddCon = AddCon and True
+                    
+                    if AddCon == True:
+                        self.UniqueConstraint.append(constraint)
                 
                 CkCQuery = ("Select cons.conbin, cons.conname from pg_constraint cons, pg_class tab " +
                            "where tab.oid = " + self.oid +" " + 

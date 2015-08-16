@@ -11,7 +11,7 @@ TraceFile = '/home/suleman/TraceLog1.txt'
 MaximumStackDepth = 5
 
 Log = True
-LogLevel = 'Fine'
+LogLevel = 'Progress'
 
 def PrintLog(log, level = 'Fine'):
     if Log == True:

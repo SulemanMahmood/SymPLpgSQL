@@ -723,8 +723,10 @@ class StateClass:
     
     def ProcessTargetList(self, ColList, Rows = None, Inner = None, Outer = None):
         TableRows = []
-        if Rows == None:
+        if Rows == None:    # Coming from t_result
             TableRows.append([])
+        elif Rows == []:    # No data found case
+            return None, ''
         else:
             for _ in range(len(Rows)):
                 TableRows.append([])
@@ -1000,56 +1002,29 @@ class StateClass:
                 if self.TempFunctionCalls != []:
                     raise Exception ('Function Call in Condition Processing')
                 
-                #No Data Found
-                CompleteCondition = ''
-                for j in range(self.getTable(TableName).getNumberOfRows()):
-                    CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, j) + ', '
+                MaximumPossibleResultRows = self.getTable(TableName).getNumberOfRows()
+                CombinationGen = CombinationGenerator(MaximumPossibleResultRows)                 
                 
-                CompleteCondition = CompleteCondition[:-2]
-                PrintLog(CompleteCondition)
-                
-                self.Current_Choices.AddChoice(CompleteCondition, None)
-                    
-                #One Row Found
-                for j in range(self.getTable(TableName).getNumberOfRows()):
-                    CompleteCondition = ''
-                    CompleteCondition = CompleteCondition + self.SubstituteTableRow(Condition, TableName, j) + ', '
-                    for k in range(self.getTable(TableName).getNumberOfRows()):
-                        if (j == k):
-                            pass
-                        else:
-                            CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, k) + ', '
-                    
-                    CompleteCondition = CompleteCondition[:-2]
-                    PrintLog(CompleteCondition)
-                    InternalTable, TargetCondition = self.ProcessTargetList(ColList = ColumnList, Rows = [j], Inner = self.Current_Tables[TableName])
-                    if TargetCondition != '':
-                        CompleteCondition = CompleteCondition + ", " + TargetCondition
-                    self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
-                
-                #Two Rows Found
-                CompleteCondition = ''
-                for j in range(self.getTable(TableName).getNumberOfRows()):
-                    ConditionPart1 = CompleteCondition + self.SubstituteTableRow(Condition, TableName, j) + ', '
-                    for k in range(j+1, self.getTable(TableName).getNumberOfRows()):
-                        CompleteCondition = ConditionPart1 + self.SubstituteTableRow(Condition, TableName, k) + ', '                    
-                        for l in range(self.getTable(TableName).getNumberOfRows()):
-                            if (l == j or l == k):
-                                pass
+                for n in range(MaximumPossibleResultRows + 1):
+                    for SatisfyingRows in CombinationGen.getCombinations(n):
+                        CompleteCondition = ''
+                        for row in CombinationGen.List:
+                            if row in SatisfyingRows:
+                                CompleteCondition = CompleteCondition + self.SubstituteTableRow(Condition, TableName, row) + ', '                       
                             else:
-                                CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, l) + ', '
+                                CompleteCondition = CompleteCondition + self.SubstituteTableRow(NoDataCond, TableName, row) + ', '
                                 
                         CompleteCondition = CompleteCondition[:-2]
                         PrintLog(CompleteCondition)
-                        InternalTable, TargetCondition = self.ProcessTargetList(ColList = ColumnList, Rows = [j,k], Inner = self.Current_Tables[TableName])
+                    
+                        InternalTable, TargetCondition = self.ProcessTargetList(ColList = ColumnList, Rows = SatisfyingRows, Inner = self.Current_Tables[TableName])
                         if TargetCondition != '':
-                            CompleteCondition = CompleteCondition + ", " + TargetCondition 
+                            CompleteCondition = CompleteCondition + ", " + TargetCondition
+                    
                         self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
-                        CompleteCondition = ''
-                
                 
             else:
-                #all rows selected
+                #all rows selected unconditionally
                 RowCount = self.getTable(TableName).getNumberOfRows()
                 if (RowCount > 0):
                     InternalTable, TargetCondition = self.ProcessTargetList(ColList = ColumnList, Rows = range(RowCount), Inner = self.Current_Tables[TableName])
@@ -1076,27 +1051,28 @@ class StateClass:
                 Type = int(TargetParts[0])
                 Name = self.CallStackNotoString() + TargetParts[1]
                 self.AddNewZ3ObjectForVariable(Name, Type)
-                ParsedTargets.append(self.SubstituteVars(' '+Name+' '))
+                ParsedTargets.append([Type, self.SubstituteVars(' '+Name+' ')])
 
             if not self.isPreviousResultNULL():
                 # Now we make the condition to be added
-                Condition = ''
+                Condition = '( '
                 i = 0
                 for Target in ParsedTargets:
-                    Condition = Condition + Target + ' == ' + "self.State.getZ3ObjectFirstRowColumnFromPreviousResult(" + i.__str__() + ")" + ", "
+                    Condition = Condition + Target[1] + ' == ' + "self.State.getZ3ObjectFirstRowColumnFromPreviousResult(" + i.__str__() + ")" + ", "
                     i = i + 1
-                Condition = Condition[:-2]
+                Condition = Condition[:-2] + ' )'
                 
                 self.Current_Variables[(self.CallStackNotoString() + 'found')] = True
                 self.Current_Choices.AddChoice(Condition, None)
             
             else: #previous result is None
-                Condition = ''
+                Condition = '( '
                 i = 0
                 for Target in ParsedTargets:
-                    Condition = Condition + Target + ' == ' + "self.State.DataHandler.NullValue" + ", "
+                    if not self.DataHandler.SkipConstraint(Target[0], self.DataHandler.NullValue):
+                        Condition = Condition + Target[1] + ' == ' + self.DataHandler.NullValue.__str__() + ", "
                     i = i + 1
-                Condition = Condition[:-2]
+                Condition = Condition[:-2] + ' )'
                 
                 self.Current_Variables[(self.CallStackNotoString() + 'found')] = False
                 self.Current_Choices.AddChoice(Condition, None)
@@ -1126,7 +1102,7 @@ class StateClass:
             
             self.AddNewZ3ObjectForVariable(Target, Type)
             Target = self.SubstituteVars(' '+Target+' ')
-            Condition = Target + ' == ' + Expr
+            Condition = '( ' + Target + ' == ' + Expr + ' )'
             PrintLog(Condition)
             self.Current_Choices.AddChoice(Condition, None)
             return True
@@ -1177,66 +1153,58 @@ class StateClass:
                     OuterRows = OuterResult.getNumberOfRows()
                     PrintLog('Inner ' + InnerRows.__str__())
                     PrintLog('Outer ' + OuterRows.__str__())
-                    Comb = CombinationGenerator(InnerRows, OuterRows)
+                    MaximumPossibleResultRows = InnerRows * OuterRows
                     
-                    #No Data Found
-                    PrintLog('No data condition')
-                    CompleteCondition = ''
-                    for RowPair in Comb.getAllSinglePairs():
-                        C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, RowPair[0])
-                        C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, RowPair[1])
-                        CompleteCondition = CompleteCondition + C2 + ', '
-                    CompleteCondition = CompleteCondition[:-2]
-                    PrintLog(CompleteCondition)
-                    self.Current_Choices.AddChoice(CompleteCondition, None)
+                    CombinationGen = CombinationGenerator(InnerRows, OuterRows)
                     
-                    #One Row Found
-                    PrintLog('One Row Conditions')
-                    for RowPair in Comb.getAllSinglePairs():
-                        CompleteCondition = ''
-                        for R in Comb.getAllSinglePairs():
-                            if RowPair == R:                       
-                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, R[0])
-                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
-                                CompleteCondition = CompleteCondition + C2 + ', '
-                            else:
-                                C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, R[0])
-                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
-                                CompleteCondition = CompleteCondition + C2 + ', '
-                        CompleteCondition = CompleteCondition[:-2]
-                        PrintLog(CompleteCondition)
-                        InternalTable, TargetCondition = self.ProcessTargetList(ColList = ColumnList, Rows = [RowPair], Inner = InnerResult, Outer = OuterResult)
-                        if TargetCondition != '':
-                            CompleteCondition = CompleteCondition + ", " + TargetCondition
-                        self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
+                    for n in range(MaximumPossibleResultRows + 1):
+                        for SatisfyingRowPairs in CombinationGen.getCombinations(n):
+                            CompleteCondition = ''
+                            for RowPair in CombinationGen.List:
+                                if RowPair in SatisfyingRowPairs:
+                                    C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, RowPair[0])
+                                    C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, RowPair[1])
+                                    CompleteCondition = CompleteCondition + C2 + ', '                       
+                                else:
+                                    C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, RowPair[0])
+                                    C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, RowPair[1])
+                                    CompleteCondition = CompleteCondition + C2 + ', '
+                                    
+                            CompleteCondition = CompleteCondition[:-2]
+                            PrintLog(CompleteCondition)
+                            
+                            InternalTable, TargetCondition = self.ProcessTargetList(ColList = ColumnList, Rows = SatisfyingRowPairs, Inner = InnerResult, Outer = OuterResult)
+                            if TargetCondition != '':
+                                CompleteCondition = CompleteCondition + ", " + TargetCondition
+                            
+                            self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                     
-                    #Two Rows Found
-                    PrintLog('Two Row Conditions')
-                    for RowComb in Comb.getAllTwoPairCombinations():
-                        CompleteCondition = ''
-                        for R in Comb.getAllSinglePairs():
-                            if (RowComb[0] == R) or (RowComb[1] == R):                       
-                                C1 = self.SubstituteInnerResultRow(Condition, InnerPlanTop, R[0])
-                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
-                                CompleteCondition = CompleteCondition + C2 + ', '
-                            else:
-                                C1 = self.SubstituteInnerResultRow(NoDataCond, InnerPlanTop, R[0])
-                                C2 = self.SubstituteOuterResultRow(C1, OuterPlanTop, R[1])
-                                CompleteCondition = CompleteCondition + C2 + ', '
-                        CompleteCondition = CompleteCondition[:-2]
-                        PrintLog(CompleteCondition)
-                        InternalTable, TargetCondition = self.ProcessTargetList(ColList = ColumnList, Rows = RowComb, Inner = InnerResult, Outer = OuterResult)
-                        if TargetCondition != '':
-                            CompleteCondition = CompleteCondition + ", " + TargetCondition
-                        self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
                 
                 else:
                     raise Exception('Join not implemeted '+ JoinType)
             
             else:
                 #Cross Join not implemented yet
-                raise Exception('Cross Join not implemeted yet')            
-            
+                InnerRows = InnerResult.getNumberOfRows()
+                OuterRows = OuterResult.getNumberOfRows()
+                PrintLog('Inner ' + InnerRows.__str__())
+                PrintLog('Outer ' + OuterRows.__str__())
+                MaximumPossibleResultRows = InnerRows * OuterRows
+                
+                CombinationGen = CombinationGenerator(InnerRows, OuterRows)
+                                        
+                InternalTable, TargetCondition = self.ProcessTargetList(ColList = ColumnList, Rows = CombinationGen.List, Inner = InnerResult, Outer = OuterResult)
+                
+                CompleteCondition = ''
+                if TargetCondition != '':
+                    CompleteCondition = TargetCondition
+                
+                if CompleteCondition == '':
+                    self.Current_Choices.AddChoice('True', InternalTable)
+                else:
+                    self.Current_Choices.AddChoice(CompleteCondition, InternalTable)
+        
+        
             return False
         
         ######################################################################################################################

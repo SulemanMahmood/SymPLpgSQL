@@ -212,6 +212,10 @@ class DataHandlerClass:
             if Type == 16:
                 return True
             
+        elif ConstraintType == -101:
+            if Type == 16:
+                return True
+            
         return False
 
     def AddTableConstraint(self, Type, Name):
