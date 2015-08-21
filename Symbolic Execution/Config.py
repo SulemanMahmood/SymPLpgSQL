@@ -9,22 +9,32 @@ TestCasePath = '/home/suleman/Desktop/TestCases/'
 Orignal_TraceFile = '/home/suleman/TraceLog.txt'
 TraceFile = '/home/suleman/TraceLog1.txt'
 MaximumStackDepth = 5
+CombinationsLimit = 3
 
 Log = True
+ExecutionMode = 'Full'   ## Update / Full
 LogLevel = 'Progress'
+LogLocation = 'Console'        ## File / Console
 
+
+def Print(log):
+    if LogLocation == 'Console':
+        print(log)
+    elif LogLocation == 'File':
+        T = open("/home/suleman/Desktop/savelog.txt", 'a')
+        try:
+            T.write(log.__str__() + '\n')
+        except:
+            pass
+        finally:
+            T.flush()
+            T.close()
+    
 def PrintLog(log, level = 'Fine'):
     if Log == True:
         if LogLevel == 'Fine':
-            print(log)
+            Print(log)
         elif LogLevel == 'Progress':
             if level == 'Progress':  # or level == '' other log levels may be added later
                 print(log)
-#         T = open("Joinlog.txt", 'a')
-#         try:
-#             T.write(log.__str__() + '\n')
-#         except:
-#             pass
-#         finally:
-#             T.flush()
-#             T.close()
+                

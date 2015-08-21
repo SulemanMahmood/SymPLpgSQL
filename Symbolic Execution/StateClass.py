@@ -30,8 +30,10 @@ class StateClass:
         self.State[self.Current_State_id]['IgnoreNodes'] = False
         
         self.TempFunctionCalls = []
-        self.TempCoalesce = []
         self.FunctionCalls = []
+        self.ConstantConditions = []
+        self.ChoiceConstraints = []
+        self.UncreatedResultVariables = []  # [Type , Name] pairs
         
         self.Types = {}
         self.Current_Variables = {}
@@ -263,22 +265,6 @@ class StateClass:
         self.State[self.Current_State_id]['Choices'] = ChoicesClass()
             
         self.Set_Current_State()
-        
-    def SubstituteVars(self,Condition):            
-        for k, _ in self.Current_Variables.items():
-            Condition = Condition.replace(' '+k+' ', " self.State.getZ3ObjectFromName('"+k+"') ")
-            Condition = Condition.replace('('+k+' ', "(self.State.getZ3ObjectFromName('"+k+"') ")
-            Condition = Condition.replace(' '+k+')', " self.State.getZ3ObjectFromName('"+k+"'))")
-            Condition = Condition.replace('('+k+')', "(self.State.getZ3ObjectFromName('"+k+"'))")
-        return Condition
-            
-    def SubstituteOldVars(self,Condition):
-        for k, _ in self.Current_Variables.items():
-            Condition = Condition.replace(' '+k+' ', " self.State.getOldZ3ObjectFromName('"+k+"') ")
-            Condition = Condition.replace('('+k+' ', "(self.State.getOldZ3ObjectFromName('"+k+"') ")
-            Condition = Condition.replace(' '+k+')', " self.State.getOldZ3ObjectFromName('"+k+"'))")
-            Condition = Condition.replace('('+k+')', "(self.State.getOldZ3ObjectFromName('"+k+"'))")
-        return Condition
     
     def NextChoice(self):
         Cond, Result_Table = self.Current_Choices.getNextCondition()
@@ -297,89 +283,268 @@ class StateClass:
             return True
         else:
             return False
+        
+    def ClearBeforeMakeCondition(self):
+        self.UncreatedResultVariables = []
+        self.ConstantConditions = []
+        self.ChoiceConstraints = []
     
-    def MakeCondition(self,Parts,i,Condition, CalledFromNullTest = False):
+    def MakeCondition(self,Parts,i,Condition):
         Node = Parts[i].split(' ')
         PrintLog(Node)
         if len(Node) == 1:
-            if Node[0] in ['65', '67', '1048']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' == '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+            if Node[0] in ['61', '62', '65', '67', '1048', '1718', '1086']: # Output = Boolean reference
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
+                    self.ConstantConditions.append(C1)
+                
+                C = '( ' + Arg1 + ' == ' + Arg2 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
             
-            elif Node[0] in ['144']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' != '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+            elif Node[0] in ['144', '1053', '157']:
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
+                    self.ConstantConditions.append(C1)
+                
+                C = '( ' + Arg1 + ' != ' + Arg2 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
             
-            elif Node[0] in ['147']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' > '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+            elif Node[0] in ['147', '1720', '1089', '1157', '1724']:
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
+                    self.ConstantConditions.append(C1)
+                
+                C = '( ' + Arg1 + ' > ' + Arg2 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
+                            
+            elif Node[0] in ['66', '1722', '1087']:
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
+                    self.ConstantConditions.append(C1)
+                
+                C = '( ' + Arg1 + ' < ' + Arg2 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
             
-            elif Node[0] in ['66']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' > '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
-            
-            elif Node[0] in ['150']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' >= '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
-            
-            elif Node[0] in ['149']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' <= '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
-            
+            elif Node[0] in ['150', '1090']:
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
+                    self.ConstantConditions.append(C1)
+                
+                C = '( ' + Arg1 + ' >= ' + Arg2 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
+                
+            elif Node[0] in ['149', '1723', '1088']:
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
+                    self.ConstantConditions.append(C1)
+                
+                C = '( ' + Arg1 + ' <= ' + Arg2 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
+                            
             elif Node[0] in ['177', '463']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' + '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif ResultType1 == self.DataHandler.BoolType:
+                    raise Exception('Boolean in Calculation Nodes')
+                
+                ReturnType = getProcedureReturnType(Node[0])
+                self.Call_ID_Seq = self.Call_ID_Seq + 1 
+                CallID = self.Call_ID_Seq
+                ResultName = self.TempCallStackNotoString(CallID) + 'ADDITIONRESULT'
+                self.UncreatedResultVariables.append([ReturnType, ResultName])
+                
+                C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                C1 = C1 + ResultName + ' == ' + Arg1 + ' + ' + Arg2 + ' )'
+                
+                C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+                C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+                C2 = C2 + ResultName + ' == ' + self.DataHandler.NullValue.__str__() + ' )'
+                
+                C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+                
+                self.ConstantConditions.append(C)
+                
+                Condition = Condition + ' ' + ResultName + ' '
+                ReturnType = ReturnType 
             
-            elif Node[0] in ['181']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' - '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+            elif Node[0] in ['181', '1142']:
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif ResultType1 == self.DataHandler.BoolType:
+                    raise Exception('Boolean in Calculation Nodes')
+                
+                ReturnType = getProcedureReturnType(Node[0])
+                self.Call_ID_Seq = self.Call_ID_Seq + 1 
+                CallID = self.Call_ID_Seq
+                ResultName = self.TempCallStackNotoString(CallID) + 'SUBTRACTIONRESULT'
+                self.UncreatedResultVariables.append([ReturnType, ResultName])
+                
+                C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                C1 = C1 + ResultName + ' == ' + Arg1 + ' - ' + Arg2 + ' )'
+                
+                C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+                C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+                C2 = C2 + ResultName + ' == ' + self.DataHandler.NullValue.__str__() + ' )'
+                
+                C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+                
+                self.ConstantConditions.append(C)
+                
+                Condition = Condition + ' ' + ResultName + ' '
+                ReturnType = ReturnType
             
             elif Node[0] in ['141']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' * '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
-            
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif ResultType1 == self.DataHandler.BoolType:
+                    raise Exception('Boolean in Calculation Nodes')
+                
+                ReturnType = getProcedureReturnType(Node[0])
+                self.Call_ID_Seq = self.Call_ID_Seq + 1 
+                CallID = self.Call_ID_Seq
+                ResultName = self.TempCallStackNotoString(CallID) + 'MULTIPLICATIONRESULT'
+                self.UncreatedResultVariables.append([ReturnType, ResultName])
+                
+                C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                C1 = C1 + ResultName + ' == ' + Arg1 + ' * ' + Arg2 + ' )'
+                
+                C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+                C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+                C2 = C2 + ResultName + ' == ' + self.DataHandler.NullValue.__str__() + ' )'
+                
+                C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+                
+                self.ConstantConditions.append(C)
+                
+                Condition = Condition + ' ' + ResultName + ' '
+                ReturnType = ReturnType
+
             elif Node[0] in ['154']:
-                Condition, i = self.MakeCondition(Parts, i+1, Condition + '( ')
-                Condition = Condition + ' / '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif ResultType1 == self.DataHandler.BoolType:
+                    raise Exception('Boolean in Calculation Nodes')
+                
+                ReturnType = getProcedureReturnType(Node[0])
+                self.Call_ID_Seq = self.Call_ID_Seq + 1 
+                CallID = self.Call_ID_Seq
+                ResultName = self.TempCallStackNotoString(CallID) + 'DIVISIONRESULT'
+                self.UncreatedResultVariables.append([ReturnType, ResultName])
+                
+                C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                C1 = C1 + ResultName + ' == ' + Arg1 + ' / ' + Arg2 + ' )'
+                
+                C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+                C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+                C2 = C2 + ResultName + ' == ' + self.DataHandler.NullValue.__str__() + ' )'
+                
+                C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+                
+                self.ConstantConditions.append(C)
+                
+                C3 = '( ' + Arg2 + ' == 0 )'
+                C4 = '( ' + Arg2 + ' != 0 )'
+                self.ChoiceConstraints.append(C3)
+                self.ChoiceConstraints.append(C4)
+                Condition = Condition + ' ' + ResultName + ' '
+                ReturnType = ReturnType               
             
             elif Node[0] in ['OR', 'or', 'Or']:
-                Condition = Condition + ' Or( '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                Condition = Condition + ' , '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif ResultType1 != self.DataHandler.BoolType:
+                    raise Exception('Incorrect argument type for boolean function')
+                
+                C = 'Or( ' + Arg1 + ' , ' + Arg2 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
             
             elif Node[0] in ['AND', 'and', 'And']:
-                Condition = Condition + ' And( '
-                Condition, i = self.MakeCondition(Parts, i+1, Condition)
-                Condition = Condition + ' , '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif ResultType1 != self.DataHandler.BoolType:
+                    raise Exception('Incorrect argument type for boolean function')
+                
+                C = 'And( ' + Arg1 + ' , ' + Arg2 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
             
             elif Node[0] in ['Not', 'not']:
-                Condition = Condition + 'Not( '
-                Condition, i = self.MakeCondition(Parts, i + 1, Condition)
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                if ResultType1 != self.DataHandler.BoolType:
+                    raise Exception('Incorrect argument type for boolean function')
+                
+                C = 'Not( ' + Arg1 + ' )'
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
                 
             elif Node[0] == 'T_NullTest':    ## this is a base case based on this we will treat booleans separately
                 i = i + 1
                 NullTestType = Parts[i]
                 
+                Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
+                if ResultType1 != self.DataHandler.BoolType:
+                    raise Exception('NullTest on Boolean Found')           
+                
                 if NullTestType == 'IS_NULL':
-                    Condition = Condition + '('
-                    Condition, i = self.MakeCondition(Parts, i + 1, Condition, CalledFromNullTest = True)
-                    Condition = Condition + ' == ' + self.DataHandler.NullValue.__str__()
+                    C = '(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' )'
                 elif NullTestType == 'IS_NOT_NULL':
-                    Condition = Condition + 'Not ('
-                    Condition, i = self.MakeCondition(Parts, i + 1, Condition, CalledFromNullTest = True)
-                    Condition = Condition + ' == ' + self.DataHandler.NullValue.__str__()
+                    C = 'Not(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' )'
+                    
+                Condition = Condition + C
+                ReturnType = self.DataHandler.BoolType
                     
             elif Node[0] == 'ARGUMENT_START':
                 # Find Argument End
@@ -393,8 +558,9 @@ class StateClass:
                         starts_count = starts_count + 1
                     
                 PartsCopy = Parts[i+1 : lookupindex]
-                Condition, _ = self.MakeCondition(PartsCopy, 0, '')
-                return Condition, lookupindex + 1 
+                C, _, ResultType = self.MakeCondition(PartsCopy, 0, '')
+                i = lookupindex + 1
+                return C, i, ResultType
             
             elif Node[0] == 'T_CoalesceExpr':
                 CoalesceResultType = int(Parts[i + 1])
@@ -437,33 +603,32 @@ class StateClass:
                     CoalesceCondition = CoalesceCondition + eachCon + ' , '
                 CoalesceCondition = CoalesceCondition[:-2] + ')'
                 
-                Coalesce = {}
-                Coalesce['Type'] = CoalesceResultType
-                Coalesce['Name'] = CoalesceResultName
-                Coalesce['Condition'] = CoalesceCondition
-                self.TempCoalesce.append(Coalesce)
-                
-                Condition = Condition + ' ' + CoalesceResultName + ' '
-                return Condition, endindex + 1     
+                self.UncreatedResultVariables.append([CoalesceResultType, CoalesceResultName])
+            
+                Condition = Condition + ' ' + CoalesceResultName
+                i = endindex + 1
+                ReturnType = CoalesceResultType     
                 
             else:
                 raise Exception('Unkown Operator '+ Node[0])
-            
-            #Common operations for all operators
-            Condition = Condition + ' )'
                 
             if i < len(Parts) and Parts[i] != '' and (Condition.count('(') == Condition.count(')')): #support for multi-clause conditions
                 Condition = 'And(' + Condition + ' , '
-                Condition, i = self.MakeCondition(Parts, i, Condition)
+                while (i < len(Parts) and Parts[i] != ''):
+                    Condition, i, _ = self.MakeCondition(Parts, i, Condition)
+                    Condition = Condition + ', '
+                Condition = Condition[:-2]
                 Condition = Condition + ' )'
-                
-            return Condition, i;
+                ReturnType = self.DataHandler.BoolType
+            
+            return Condition, i, ReturnType
             
         else:
             if Node[0] == 'Col':
                 Type = int(Node[1])
                 Name = Node[2]
-                Condition = Condition + self.DataHandler.ConditionHelper(Type, Name, CalledFromNullTest)
+                Condition = Condition + self.DataHandler.ConditionHelper(Type, Name)
+                return Condition, i+1, Type
             
             elif Node[0] == 'Param':
                 Type = int(Node[1])
@@ -471,7 +636,8 @@ class StateClass:
                 if Name == (self.CallStackNotoString() + 'found'):
                     Condition = Condition + self.Current_Variables[Name].__str__()
                 else:
-                    Condition = Condition + self.DataHandler.ConditionHelper(Type, Name, CalledFromNullTest)
+                    Condition = Condition + self.DataHandler.ConditionHelper(Type, Name)
+                return Condition, i+1, Type
             
             elif Node[0] == 'FunctionCall':
                 Proc = getProcedureFromNumber(Node[1]) 
@@ -491,7 +657,7 @@ class StateClass:
                     i = i + 1   # point to next node to be processed
                     
                     for Arg in Proc.getArgList() :
-                        processedarg, i = self.MakeCondition(Parts, i, '')
+                        processedarg, i, _ = self.MakeCondition(Parts, i, '')
                         ArgName = self.TempCallStackNotoString(CallID) + Arg[1]
                         Arg[1] = ArgName
                         FunctionArgNames.append(Arg)
@@ -515,8 +681,8 @@ class StateClass:
                     
                     self.TempFunctionCalls.append(FunctionCall)
                     
-                    Condition = Condition + ' ' + self.DataHandler.ConditionHelper(ReturnType, RetturnVariableName, CalledFromNullTest)
-                    i = i - 1  # to conform with logic of two part nodes
+                    Condition = Condition + ' ' + self.DataHandler.ConditionHelper(ReturnType, RetturnVariableName)
+                    return Condition, i, ReturnType
                 
                 else:
                     # Not a PLSQL function. Model it.
@@ -528,39 +694,81 @@ class StateClass:
                     i = i + 1   # point to next node to be processed
                     ArgList = '[  '                                      #  3) process ArgList
                     for _ in range(NoOfArgs) :
-                        processedarg, i = self.MakeCondition(Parts, i, '')
+                        processedarg, i, _ = self.MakeCondition(Parts, i, '')
                         ArgList = ArgList + processedarg + ' , '
                     ArgList = ArgList[:-2] + ' ]'
             
 #                   5) append the string with function self.State.getReturnValueFromModel
                     Condition = Condition + ' ' + "self.State.getReturnValueFromModel(" + FunctionOid + ", " + ArgList + " )"
-                    i = i - 1  # to conform with logic of two part nodes
+                    return Condition, i, ReturnType
             
             else:   #Constants
                 Type = int(Node[0])
                 Value = Node[1];
                 Condition = Condition + self.DataHandler.ProcessConstant(Type, Value).__str__()
+                return Condition, i, Type
+
+    def SubstituteVars(self,Condition, HandleUncreated = False, AddConstantConstraints = False):
+        if HandleUncreated == True:
+            for var in self.UncreatedResultVariables:
+                Type = var[0]
+                Name = var[1] + '_' + self.Current_State_id.__str__()
+                self.Types[Name] = Type
+                self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, Name)
+        
+        if AddConstantConstraints == True:
+            Condition = Condition + ' , '
+            for C in self.ConstantConditions:
+                Condition = Condition + C + ' , '
+            Condition = Condition[:-2]
                 
-            return Condition, i+1
+        for k, _ in self.Current_Variables.items():
+            Condition = Condition.replace(' '+k+' ', " self.State.getZ3ObjectFromName('"+k+"') ")
+            Condition = Condition.replace('('+k+' ', "(self.State.getZ3ObjectFromName('"+k+"') ")
+            Condition = Condition.replace(' '+k+')', " self.State.getZ3ObjectFromName('"+k+"'))")
+            Condition = Condition.replace('('+k+')', "(self.State.getZ3ObjectFromName('"+k+"'))")
+        return Condition
+            
+    def SubstituteOldVars(self,Condition, HandleUncreated = False, AddConstantConstraints = False):
+        if HandleUncreated == True:
+            for var in self.UncreatedResultVariables:
+                Type = var[0]
+                Name = var[1] + '_' + self.Current_State_id.__str__()
+                self.Types[Name] = Type
+                self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, Name)
         
-    def SubstituteCoalesce(self,Condition):
-        C = ''
-        for Coalesce in self.TempCoalesce:
-            CoalType = Coalesce['Type']
-            CoalName = Coalesce['Name']
-            CoalCondition = Coalesce['Condition']
-            self.Types[CoalName] = CoalType
-            self.State[self.Current_State_id]['Variables'][CoalName] = self.DataHandler.getZ3Object(CoalType, CoalName)
-            Condition = Condition.replace(' ' + CoalName + ' ', " self.State.getZ3ObjectFromName('" + CoalName + "') ")
-            C = C + CoalCondition.replace(' ' + CoalName + ' ', " self.State.getZ3ObjectFromName('" + CoalName + "') ") + ' , '
-        
-        C = C[:-2]            
-        self.TempCoalesce = []
-        return Condition, C
+        if AddConstantConstraints == True:
+            Condition = Condition + ' , '
+            for C in self.ConstantConditions:
+                Condition = Condition + C + ' , '
+            Condition = Condition[:-2]
+                
+        for k, _ in self.State[self.Current_State_id-1]['Variables'].items():
+            Condition = Condition.replace(' '+k+' ', " self.State.getOldZ3ObjectFromName('"+k+"') ")
+            Condition = Condition.replace('('+k+' ', "(self.State.getOldZ3ObjectFromName('"+k+"') ")
+            Condition = Condition.replace(' '+k+')', " self.State.getOldZ3ObjectFromName('"+k+"'))")
+            Condition = Condition.replace('('+k+')', "(self.State.getOldZ3ObjectFromName('"+k+"'))")
+        return Condition
     
-    def SubstituteTableRow(self, Condition, TableName, RowNum):
+    def SubstituteTableRow(self, Condition, TableName, RowNum, HandleUncreated = True, AddConstantConstraints = True):
         Condition = ' ' + Condition + ' '
         Table = self.Current_Tables[TableName]
+        
+        if AddConstantConstraints == True:
+            Condition = Condition + ' , '
+            for C in self.ConstantConditions:
+                Condition = Condition + C + ' , '
+            Condition = Condition[:-2]
+        
+        if HandleUncreated == True:
+            for var in self.UncreatedResultVariables:
+                Type = var[0]
+                Name = var[1] + '_' + self.Current_State_id.__str__() + '_' + TableName + '_' + RowNum.__str__()
+                self.Types[Name] = Type
+                self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, Name)
+        
+            Condition = self.SubstituteVars(Condition)
+        
         for Name in Table.getColumnNameList():
             Condition = Condition.replace(' '+Name+' ', " self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
             Condition = Condition.replace('('+Name+' ', "(self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
@@ -568,8 +776,24 @@ class StateClass:
             Condition = Condition.replace('('+Name+')', "(self.State.getZ3ObjectForTableElement('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+"))")
         return Condition
     
-    def SubstituteTableRowForTestCase(self, Condition, TableName, RowNum):
+    def SubstituteTableRowForTestCase(self, Condition, TableName, RowNum, HandleUncreated = True, AddConstantConstraints = True):
         Table = self.State[0]['Tables'][TableName]
+        
+        if AddConstantConstraints == True:
+            Condition = Condition + ' , '
+            for C in self.ConstantConditions:
+                Condition = Condition + C + ' , '
+            Condition = Condition[:-2]
+            
+        if HandleUncreated == True:
+            for var in self.UncreatedResultVariables:
+                Type = var[0]
+                Name = var[1] + '_' + 'TestCase' + '_' + TableName + '_' + RowNum.__str__()
+                self.Types[Name] = Type
+                self.State[self.Current_State_id]['Variables'][Name] = self.DataHandler.getZ3Object(Type, Name)
+        
+            Condition = self.SubstituteVars(Condition)
+        
         for Name in Table.getColumnNameList():
             Condition = Condition.replace(' '+Name+' ', " self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
             Condition = Condition.replace('('+Name+' ', "(self.State.getZ3ObjectForTableElementForTestCase('"+TableName+"', " + Table.getColumnIndexFromName(Name).__str__() + ", " +RowNum.__str__()+") ")
@@ -608,13 +832,11 @@ class StateClass:
                 
         #Check Constraints
         for eachCon in self.getCheckConsForTestCase(TableName):
-            C, _ = self.MakeCondition(eachCon.split('\t'), 0, '')
-            C, CoalCondition = self.SubstituteCoalesce(C)
+            self.ClearBeforeMakeCondition()
+            C, _, _ = self.MakeCondition(eachCon.split('\t'), 0, '')
             
             for i in range(Rows):
                 Condition = Condition + self.SubstituteTableRowForTestCase(C, TableName, i) + ', ' 
-                if CoalCondition != '':
-                    Condition = Condition + self.SubstituteTableRowForTestCase(CoalCondition, TableName, i) + ', ' 
         
         #Foreign Key Handling                
         for ForeignKey in self.getFKeyConsForTestCase(TableName):
@@ -650,14 +872,12 @@ class StateClass:
         
         #Check Constraints        also contains not null part of primary key
         for eachCon in self.getCheckConsForTestCase(TableName):
-            C, _ = self.MakeCondition(eachCon.split('\t'), 0, '')
-            C, CoalCondition = self.SubstituteCoalesce(C)
+            self.ClearBeforeMakeCondition()
+            C, _, _ = self.MakeCondition(eachCon.split('\t'), 0, '')
             
             for i in range(Rows):
                 Condition = Condition + self.SubstituteTableRow(C, TableName, i) + ', '
-                if CoalCondition != '':
-                    Condition = Condition + self.SubstituteTableRow(CoalCondition, TableName, i) + ', '
-                     
+                      
         #Foreign Key Handling                
         for ForeignKey in self.getFKeyConsForTestCase(TableName):
             T1 = self.getTable(TableName)
@@ -682,7 +902,8 @@ class StateClass:
         for Name, Type in self.Types.items():
             C1 = self.DataHandler.getVariableTypeConstraint(Type, Name);
             if C1 != None:
-                C, _ = self.MakeCondition(C1.split('\t'), 0, '')
+                self.ClearBeforeMakeCondition()
+                C, _, _ = self.MakeCondition(C1.split('\t'), 0, '')
                 prefix = ' ' + self.CallStackNotoString()
                 C = C.replace(prefix, ' ')
                 Condition = Condition + self.SubstituteVars(C) + ', '
@@ -800,12 +1021,13 @@ class StateClass:
                                 Target = Target[:-1]                        
                             
                             # Now Play with Target
-                            Expr , _ = self.MakeCondition(Target, 0, '')
+                            self.ClearBeforeMakeCondition()
+                            Expr , _, _ = self.MakeCondition(Target, 0, '')
+                                                         
+                            Expr = self.SubstituteOldVars(' ' + Expr + ' ', False, True)
+                            Expr = self.SubstituteVars(' ' + Expr + ' ', True, False)
                             
-                            if self.TempCoalesce != []:
-                                raise Exception('Unhandled Coalesce')
-                             
-                            Expr = self.SubstituteOldVars(' ' + Expr + ' ')
+                            PrintLog(Expr)
                                 
                             for F in self.TempFunctionCalls:
                                 F1, Expr = self.SubstituteInFunctionCall(F, Expr)
@@ -842,12 +1064,11 @@ class StateClass:
                             Target = Target[:-1]                        
                         
                         # Now Play with Target
-                        Expr , _ = self.MakeCondition(Target, 0, '')
+                        self.ClearBeforeMakeCondition()
+                        Expr , _, _ = self.MakeCondition(Target, 0, '')
                         
-                        if self.TempCoalesce != []:
-                            raise Exception('Unhandled Coalesce')
-                        
-                        Expr = self.SubstituteOldVars(' ' + Expr + ' ')
+                        Expr = self.SubstituteOldVars(' ' + Expr + ' ', False, True)
+                        Expr = self.SubstituteVars(' ' + Expr + ' ', True, False)
                             
                         for F in self.TempFunctionCalls:
                             F1, Expr = self.SubstituteInFunctionCall(F, Expr)
@@ -929,14 +1150,15 @@ class StateClass:
             else:
                 IF['COMPLEX'] = False
                 self.State[self.Current_State_id]['IFs'].append(IF)
-                    
-                Condition, i = self.MakeCondition(Parts,1,'')
+                
+                self.ClearBeforeMakeCondition()    
+                Condition, i, _ = self.MakeCondition(Parts,1,'')
                 PrintLog(Condition)
+                NotCondition = 'Not( '+ Condition +' )'
                 
-                Condition, CoalCondition = self.SubstituteCoalesce(Condition)
                 
-                Condition = self.SubstituteOldVars(' ' + Condition + ' ')
-                CoalCondition = self.SubstituteOldVars(' ' + CoalCondition + ' ')
+                Condition = self.SubstituteVars(' ' + Condition + ' ', True, True)
+                NotCondition = self.SubstituteVars(' ' + NotCondition + ' ', False, True)
                 
                 for F in self.TempFunctionCalls:
                     F1, Condition = self.SubstituteInFunctionCall(F, Condition)
@@ -946,8 +1168,8 @@ class StateClass:
                 
                 PrintLog(Condition)
                    
-                self.Current_Choices.AddChoice(Condition + ' , ' + CoalCondition , None)
-                self.Current_Choices.AddChoice('Not('+Condition+')'  + ' , ' + CoalCondition , None)
+                self.Current_Choices.AddChoice(Condition , None)
+                self.Current_Choices.AddChoice(NotCondition , None)
                 return False
             
         ######################################################################################################################
@@ -989,13 +1211,9 @@ class StateClass:
             ConditionStartingValue_i = i + 1;
             
             if ((i < len(Parts) and Parts[i] == 'Conditions')):
-                
-                Condition, _ = self.MakeCondition(Parts, ConditionStartingValue_i, '')
-                
-                if self.TempCoalesce != []:
-                    raise Exception('Unhandled Coalesce')
-                
-                Condition = self.SubstituteVars(Condition)
+                self.ClearBeforeMakeCondition()
+                Condition, _, _ = self.MakeCondition(Parts, ConditionStartingValue_i, '')
+                                
                 NoDataCond = 'Not('+Condition+')'
                 PrintLog(Condition)
                 
@@ -1005,7 +1223,7 @@ class StateClass:
                 MaximumPossibleResultRows = self.getTable(TableName).getNumberOfRows()
                 CombinationGen = CombinationGenerator(MaximumPossibleResultRows)                 
                 
-                for n in range(MaximumPossibleResultRows + 1):
+                for n in range(min( MaximumPossibleResultRows + 1, CombinationsLimit)):
                     for SatisfyingRows in CombinationGen.getCombinations(n):
                         CompleteCondition = ''
                         for row in CombinationGen.List:
@@ -1087,12 +1305,11 @@ class StateClass:
             Type = int(Node[0])
             Target = self.CallStackNotoString() + Node[1]
 
-            Expr, _ = self.MakeCondition(Parts, 2, '')
+            self.ClearBeforeMakeCondition()
+            Expr, _, _ = self.MakeCondition(Parts, 2, '')
             
-            if self.TempCoalesce != []:
-                raise Exception('Unhandled Coalesce')
-            
-            Expr = self.SubstituteOldVars(' ' + Expr + ' ')
+            Expr = self.SubstituteOldVars(' ' + Expr + ' ' ,False, True )
+            Expr = self.SubstituteVars(' ' + Expr + ' ' ,True, False )
             
             for F in self.TempFunctionCalls:
                 F1, Expr = self.SubstituteInFunctionCall(F, Expr)
@@ -1132,14 +1349,13 @@ class StateClass:
                     i = i+1
             
             if ((i < len(Parts) and Parts[i] == 'Conditions')):
+                self.ClearBeforeMakeCondition()
+                Condition, i, _ = self.MakeCondition(Parts, i+1, '')
                 
-                Condition, i = self.MakeCondition(Parts, i+1, '')
-                
-                if self.TempCoalesce != []:
-                    raise Exception('Unhandled Coalesce')
-                
-                Condition = self.SubstituteVars(Condition)
                 NoDataCond = 'Not('+Condition+')'
+                
+                Condition = self.SubstituteVars(Condition, True, True)
+                NoDataCond = self.SubstituteVars(NoDataCond, True, True)
                 
                 InnerResult = self.State[InnerPlanTop]['Results']
                 OuterResult = self.State[OuterPlanTop]['Results']
@@ -1157,7 +1373,7 @@ class StateClass:
                     
                     CombinationGen = CombinationGenerator(InnerRows, OuterRows)
                     
-                    for n in range(MaximumPossibleResultRows + 1):
+                    for n in range( min( MaximumPossibleResultRows + 1, CombinationsLimit) ):
                         for SatisfyingRowPairs in CombinationGen.getCombinations(n):
                             CompleteCondition = ''
                             for RowPair in CombinationGen.List:
@@ -1185,6 +1401,13 @@ class StateClass:
             
             else:
                 #Cross Join not implemented yet
+                InnerResult = self.State[InnerPlanTop]['Results']
+                OuterResult = self.State[OuterPlanTop]['Results']
+                
+                if InnerResult == None or OuterResult == None:
+                    self.Current_Choices.AddChoice('True', None)
+                    return True
+                
                 InnerRows = InnerResult.getNumberOfRows()
                 OuterRows = OuterResult.getNumberOfRows()
                 PrintLog('Inner ' + InnerRows.__str__())
@@ -1297,12 +1520,11 @@ class StateClass:
                     
                 Row.append(self.DataHandler.getZ3Object(Type, ResultName))
                 
-                Expr , _ = self.MakeCondition(Parts,1 , '')
+                self.ClearBeforeMakeCondition()
+                Expr , _, _ = self.MakeCondition(Parts,1 , '')
                 
-                if self.TempCoalesce != []:
-                    raise Exception('Unhandled Coalesce')
-                
-                Expr = self.SubstituteOldVars(' ' + Expr + ' ')
+                Expr = self.SubstituteOldVars(' ' + Expr + ' ', False, True)
+                Expr = self.SubstituteVars(' ' + Expr + ' ', True, False)
                 
                 for FunctionCall in self.TempFunctionCalls:
                     ReturnVariableName = FunctionCall['ReturnVariableName']

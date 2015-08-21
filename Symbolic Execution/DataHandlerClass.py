@@ -10,6 +10,8 @@ class DataHandlerClass:
         self.NullValue = -101
         
         self.BaseDate = '20150401'
+        self.BoolType = 16
+        self.NumType = 23
         
     
     def getZ3Object(self, Type, Name):
@@ -198,10 +200,8 @@ class DataHandlerClass:
         else:
             raise Exception('Type not handled in check constrains ' + Type.__str__())
         
-    def ConditionHelper(self, Type, Name, CalledFromNullTest = False):
-        if CalledFromNullTest and Type == 16:
-            raise Exception('Nulltest on Boolean found')
-        return Name
+    def ConditionHelper(self, Type, Name):
+        return Name     # identity function now because Null tests on Booleans have been elimiated
     
     def SkipConstraint(self,Type, ConstraintType):
         if ConstraintType == 'NotNULL':
@@ -213,6 +213,10 @@ class DataHandlerClass:
                 return True
             
         elif ConstraintType == -101:
+            if Type == 16:
+                return True
+            
+        elif ConstraintType == 'NullCheck':
             if Type == 16:
                 return True
             
