@@ -74,7 +74,7 @@ class Z3Solver:
             
     def addConstraintToSolver(self, Condition):
         while Condition not in [''] :
-            PrintLog('Condition is |' + Condition + '|')
+            #PrintLog('Condition is |' + Condition + '|')
             a = Condition.find('(')    
             b = Condition.find(',')
             

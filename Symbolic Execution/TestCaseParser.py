@@ -32,7 +32,7 @@ class TestCaseParser:
         for table in State.getTableListForTestCase():
             TableName = State.getTableName(table)
             for Con in State.getDisabledConstraints(table):
-                line = 'Alter Table '+ TableName + ' DROP CONSTRAINT ' + Con + ';\n'
+                line = 'Alter Table '+ TableName + ' DROP CONSTRAINT IF EXISTS ' + Con + ';\n'
                 Test.write(line); 
         
         # Setup data for tables
