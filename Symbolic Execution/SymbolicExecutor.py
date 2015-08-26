@@ -14,8 +14,8 @@ class SymbolicExecutor:
     def run(self):
         self.DataHandler = DataHandlerClass()
         self.CaseParser = TestCaseParser(self.Procedure, self.DataHandler)
-        State = StateClass(self.Procedure, self.DataHandler)
-        self.Z3 = Z3Solver(State, self.CaseParser)
+        self.State = StateClass(self.Procedure, self.DataHandler)
+        self.Z3 = Z3Solver(self.State, self.CaseParser)
         Data, Test = self.Z3.get_first_test_case()
         
         while True:
@@ -72,5 +72,29 @@ class SymbolicExecutor:
     def getZ3CheckCount(self):
         try:
             return self.Z3.getCheckCount()
+        except:
+            return 0
+        
+    def getTableCount(self):
+        try:
+            return self.State.Current_Tables.__len__()
+        except:
+            return 0
+        
+    def getFKCount(self):
+        try:
+            return self.State.getFKcount()
+        except:
+            return 0
+    
+    def getCheckCount(self):
+        try:
+            return self.State.getCheckCount()
+        except:
+            return 0
+    
+    def getUniqueCount(self):
+        try:
+            return self.State.getUniqueCount()
         except:
             return 0

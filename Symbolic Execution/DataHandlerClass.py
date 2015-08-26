@@ -224,8 +224,9 @@ class DataHandlerClass:
 
     def AddTableConstraint(self, Type, Name):
         if Type == 1042:
+            pass
             return ("or\t" +
-                        "or\t" +
+#                         "or\t" +
                             "or\t" + 
                                 "and\t" +
                                     "150\tCol " + Type.__str__() + " " + Name + "\t1042 A\t" + 
@@ -235,15 +236,16 @@ class DataHandlerClass:
                                     "149\tCol " + Type.__str__() + " " + Name + "\t1042 z\t" +
                             "and\t" + 
                                 "150\tCol " + Type.__str__() + " " + Name + "\t1042 0\t" + 
-                                "149\tCol " + Type.__str__() + " " + Name + "\t1042 9\t" +
-                        "T_NullTest\tIS_NULL\tCol " + Type.__str__() + " " + Name + "\t")
+                                "149\tCol " + Type.__str__() + " " + Name + "\t1042 9\t") # +
+#                         "T_NullTest\tIS_NULL\tCol " + Type.__str__() + " " + Name + "\t")
         else:
             return None
+        return None
     
     def getVariableTypeConstraint(self, Type, Name):
         if Type == 1042:
             return ("or\t" +
-                        "or\t" +
+#                         "or\t" +
                             "or\t" + 
                                 "and\t" + 
                                     "150\tParam " + Type.__str__() + " " + Name + " \t1042 A\t" + 
@@ -253,11 +255,12 @@ class DataHandlerClass:
                                     "149\tParam " + Type.__str__() + " " + Name + " \t1042 z\t" +
                             "and\t" + 
                                 "150\tParam " + Type.__str__() + " " + Name + " \t1042 0\t" + 
-                                "149\tParam " + Type.__str__() + " " + Name + " \t1042 9\t" +
-                        "T_NullTest\tIS_NULL\tParam " + Type.__str__() + " " + Name + "\t")
-    
+                                "149\tParam " + Type.__str__() + " " + Name + " \t1042 9\t") # +
+#                         "T_NullTest\tIS_NULL\tParam " + Type.__str__() + " " + Name + "\t")
+     
         else:
             return None
+        return None
         
     def AddString(self,Value):
         if isString(Value):

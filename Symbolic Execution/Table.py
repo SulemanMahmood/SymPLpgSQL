@@ -29,6 +29,9 @@ class Table:
                 NameList = DB.fetchall()
                 self.Name = NameList[0][0]
                 
+                if self.Name[0:3] == 'pg_':
+                    raise Exception('Catalog table ' + self.Name + ' being modeled')
+                
                 ColQuery = ("Select cols.attname, cols.atttypid, cols.attnum, cols.attnotnull " +
                 "from pg_attribute cols, pg_class tab " +
                 "where tab.oid = cols.attrelid " +

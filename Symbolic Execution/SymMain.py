@@ -29,13 +29,13 @@ for proc in procList:
     try:
         Executor = SymbolicExecutor(Procedure)
         Executor.run()
-        DB.execute("Insert into Exception_Log (proname, status, solver_queries, testcases) values ('" + Procedure.getName() +"', 'Completed' , " + Executor.getZ3CheckCount().__str__() +", " + Executor.CaseParser.CaseNo.__str__() +")")
+        DB.execute("Insert into Exception_Log (proname, status, solver_queries, testcases, tablesmodeled, fkmodeled, uniquemodeled, checkmodeled) values ('" + Procedure.getName() +"', 'Completed' , " + Executor.getZ3CheckCount().__str__() +", " + Executor.CaseParser.CaseNo.__str__() + ", " + Executor.getTableCount().__str__() + ", " + Executor.getFKCount().__str__() + ", " + Executor.getUniqueCount().__str__() + ", " + Executor.getCheckCount().__str__() + ")")
         DB.execute("commit")
     except Exception as e:
         Error = (e.args).__str__()
         Error = Error[2:-3]
         Error = Error.replace('\'','-')
-        insertexpr = "Insert into Exception_Log (proname, status, solver_queries, testcases) values ('" + Procedure.getName() +"', '"+ Error + "', " + Executor.getZ3CheckCount().__str__() +", " + Executor.CaseParser.CaseNo.__str__() + ")"
+        insertexpr = "Insert into Exception_Log (proname, status, solver_queries, testcases, tablesmodeled, fkmodeled, uniquemodeled, checkmodeled) values ('" + Procedure.getName() +"', '"+ Error + "', " + Executor.getZ3CheckCount().__str__() +", " + Executor.CaseParser.CaseNo.__str__() + ", " + Executor.getTableCount().__str__() + ", " + Executor.getFKCount().__str__() + ", " + Executor.getUniqueCount().__str__() + ", " + Executor.getCheckCount().__str__() +  ")"
         PrintLog(insertexpr)
         DB.execute(insertexpr)
         DB.execute("commit")

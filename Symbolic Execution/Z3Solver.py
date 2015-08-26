@@ -110,7 +110,7 @@ class Z3Solver:
                 Condition = Condition[(a+1):].strip()
             
             code = 'self.S.add('+statement+')'
-            PrintLog(code)  
+            #PrintLog(code)  
             exec(code)
             
     def get_first_test_case(self):
@@ -118,7 +118,7 @@ class Z3Solver:
         code = 'self.S.add('+BaseConstraint+')'
         self.S.push()
         exec(code)
-        PrintLog(self.S)
+        #PrintLog(self.S)
         self.S.check()
         self.S.pop()
         M = self.S.model()
@@ -130,7 +130,7 @@ class Z3Solver:
             Condition, _ = self.State.NextChoice()
             self.S.push()
             self.addConstraintToSolver(Condition)
-            PrintLog(self.S)
+            #PrintLog(self.S)
             return True
         else:
             return False

@@ -148,6 +148,24 @@ class StateClass:
         Path.pop()
         return self.Current_Tables[TableName]
     
+    def getFKcount(self):
+        count = 0
+        for T in self.Current_Tables:
+            count = count + self.getTable(T).FKConstraint.__len__()
+        return count
+    
+    def getUniqueCount(self):
+        count = 0
+        for T in self.Current_Tables:
+            count = count + self.getTable(T).UniqueConstraint.__len__()
+        return count
+    
+    def getCheckCount(self):
+        count = 0
+        for T in self.Current_Tables:
+            count = count + self.getTable(T).CheckConstraint.__len__()
+        return count
+    
     def getSequenceListForTestCase(self):
         List = []
         for k in self.State[0]['Sequences']:
@@ -304,89 +322,191 @@ class StateClass:
         Node = Parts[i].split(' ')
         PrintLog(Node)
         if len(Node) == 1:
-            if Node[0] in ['61', '62', '65', '67', '1048', '1718', '1086']: # Output = Boolean reference
+            if Node[0] in ['61', '62', '65', '67', '1048', '1718', '1086']: # Equality Check
                 Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
                 Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
-                if ResultType1 != ResultType2:
-                    raise Exception('mismatch in arg types')
-                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
-                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
-                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
-                    self.ConstantConditions.append(C1)
                 
-                C = '( ' + Arg1 + ' == ' + Arg2 + ' )'
-                Condition = Condition + C
-                ReturnType = self.DataHandler.BoolType
+                ReturnType = getProcedureReturnType(Node[0])
+#                 self.Call_ID_Seq = self.Call_ID_Seq + 1 
+#                 CallID = self.Call_ID_Seq
+#                 ResultName = self.TempCallStackNotoString(CallID) + 'EQUALCHECKRESULT'
+#                 self.UncreatedResultVariables.append([ReturnType, ResultName])
+#                 
+#                 if ResultType1 != ResultType2:
+#                     raise Exception('mismatch in arg types')
+#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+#                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' == ' + Arg2 + ' ))'
+#                     
+#                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+#                     C2 = C2 + ResultName + ' == False )'
+#                     
+#                     C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+#                     self.ConstantConditions.append(C)
+#                 else:
+#                     C =  '( ' + ResultName + ' == ( ' + Arg1 + ' == ' + Arg2 + ' ))'
+#                     self.ConstantConditions.append(C)
+#                 
+#                 Condition = Condition + ' ' + ResultName + ' '
+                Condition = Condition + '( ' + Arg1 + ' == ' + Arg2 + ' )'
+                ReturnType = ReturnType
             
             elif Node[0] in ['144', '1053', '157']:
                 Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
                 Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
-                if ResultType1 != ResultType2:
-                    raise Exception('mismatch in arg types')
-                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
-                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
-                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
-                    self.ConstantConditions.append(C1)
                 
-                C = '( ' + Arg1 + ' != ' + Arg2 + ' )'
-                Condition = Condition + C
-                ReturnType = self.DataHandler.BoolType
+                ReturnType = getProcedureReturnType(Node[0])
+#                 self.Call_ID_Seq = self.Call_ID_Seq + 1 
+#                 CallID = self.Call_ID_Seq
+#                 ResultName = self.TempCallStackNotoString(CallID) + 'NOTEQUALCHECKRESULT'
+#                 self.UncreatedResultVariables.append([ReturnType, ResultName])
+#                 
+#                 if ResultType1 != ResultType2:
+#                     raise Exception('mismatch in arg types')
+#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+#                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' != ' + Arg2 + ' ))'
+#                     
+#                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+#                     C2 = C2 + ResultName + ' == False )'
+#                     
+#                     C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+#                     self.ConstantConditions.append(C)
+#                 else:
+#                     C =  '( ' + ResultName + ' == ( ' + Arg1 + ' != ' + Arg2 + ' ))'
+#                     self.ConstantConditions.append(C)
+#                 
+#                 Condition = Condition + ' ' + ResultName + ' '
+                Condition = Condition + '( ' + Arg1 + ' != ' + Arg2 + ' )'
+                ReturnType = ReturnType
             
             elif Node[0] in ['147', '1720', '1089', '1157', '1724']:
                 Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
                 Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
-                if ResultType1 != ResultType2:
-                    raise Exception('mismatch in arg types')
-                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
-                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
-                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
-                    self.ConstantConditions.append(C1)
                 
-                C = '( ' + Arg1 + ' > ' + Arg2 + ' )'
-                Condition = Condition + C
-                ReturnType = self.DataHandler.BoolType
+                ReturnType = getProcedureReturnType(Node[0])
+#                 self.Call_ID_Seq = self.Call_ID_Seq + 1 
+#                 CallID = self.Call_ID_Seq
+#                 ResultName = self.TempCallStackNotoString(CallID) + 'GREATERCHECKRESULT'
+#                 self.UncreatedResultVariables.append([ReturnType, ResultName])
+#                 
+#                 if ResultType1 != ResultType2:
+#                     raise Exception('mismatch in arg types')
+#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+#                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' > ' + Arg2 + ' ))'
+#                     
+#                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+#                     C2 = C2 + ResultName + ' == False )'
+#                     
+#                     C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+#                     self.ConstantConditions.append(C)
+#                 else:
+#                     C =  '( ' + ResultName + ' == ( ' + Arg1 + ' > ' + Arg2 + ' ))'
+#                     self.ConstantConditions.append(C)
+#                 
+#                 Condition = Condition + ' ' + ResultName + ' '
+                Condition = Condition + '( ' + Arg1 + ' > ' + Arg2 + ' )'
+                ReturnType = ReturnType
                             
             elif Node[0] in ['66', '1722', '1087']:
                 Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
                 Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
-                if ResultType1 != ResultType2:
-                    raise Exception('mismatch in arg types')
-                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
-                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
-                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
-                    self.ConstantConditions.append(C1)
                 
-                C = '( ' + Arg1 + ' < ' + Arg2 + ' )'
-                Condition = Condition + C
-                ReturnType = self.DataHandler.BoolType
+                ReturnType = getProcedureReturnType(Node[0])
+#                 self.Call_ID_Seq = self.Call_ID_Seq + 1 
+#                 CallID = self.Call_ID_Seq
+#                 ResultName = self.TempCallStackNotoString(CallID) + 'LESSCHECKRESULT'
+#                 self.UncreatedResultVariables.append([ReturnType, ResultName])
+#                 
+#                 if ResultType1 != ResultType2:
+#                     raise Exception('mismatch in arg types')
+#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+#                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' < ' + Arg2 + ' ))'
+#                     
+#                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+#                     C2 = C2 + ResultName + ' == False )'
+#                     
+#                     C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+#                     self.ConstantConditions.append(C)
+#                 else:
+#                     C =  '( ' + ResultName + ' == ( ' + Arg1 + ' < ' + Arg2 + ' ))'
+#                     self.ConstantConditions.append(C)
+#                 
+#                 Condition = Condition + ' ' + ResultName + ' '
+                Condition = Condition + '( ' + Arg1 + ' < ' + Arg2 + ' )'
+                ReturnType = ReturnType
             
             elif Node[0] in ['150', '1090']:
                 Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
                 Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
-                if ResultType1 != ResultType2:
-                    raise Exception('mismatch in arg types')
-                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
-                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
-                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
-                    self.ConstantConditions.append(C1)
                 
-                C = '( ' + Arg1 + ' >= ' + Arg2 + ' )'
-                Condition = Condition + C
-                ReturnType = self.DataHandler.BoolType
+                ReturnType = getProcedureReturnType(Node[0])
+#                 self.Call_ID_Seq = self.Call_ID_Seq + 1 
+#                 CallID = self.Call_ID_Seq
+#                 ResultName = self.TempCallStackNotoString(CallID) + 'GREATEREQUALCHECKRESULT'
+#                 self.UncreatedResultVariables.append([ReturnType, ResultName])
+#                 
+#                 if ResultType1 != ResultType2:
+#                     raise Exception('mismatch in arg types')
+#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+#                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' >= ' + Arg2 + ' ))'
+#                     
+#                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+#                     C2 = C2 + ResultName + ' == False )'
+#                     
+#                     C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+#                     self.ConstantConditions.append(C)
+#                 else:
+#                     C =  '( ' + ResultName + ' == ( ' + Arg1 + ' >= ' + Arg2 + ' ))'
+#                     self.ConstantConditions.append(C)
+#                 
+#                 Condition = Condition + ' ' + ResultName + ' '
+                Condition = Condition  + '( ' + Arg1 + ' >= ' + Arg2 + ' )'
+                ReturnType = ReturnType
                 
             elif Node[0] in ['149', '1723', '1088']:
                 Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
                 Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
-                if ResultType1 != ResultType2:
-                    raise Exception('mismatch in arg types')
-                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
-                    C1 = ' And (' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
-                    C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' )'
-                    self.ConstantConditions.append(C1)
                 
-                C = '( ' + Arg1 + ' <= ' + Arg2 + ' )'
-                Condition = Condition + C
-                ReturnType = self.DataHandler.BoolType
+                ReturnType = getProcedureReturnType(Node[0])
+#                 self.Call_ID_Seq = self.Call_ID_Seq + 1 
+#                 CallID = self.Call_ID_Seq
+#                 ResultName = self.TempCallStackNotoString(CallID) + 'LESSEQUALCHECKRESULT'
+#                 self.UncreatedResultVariables.append([ReturnType, ResultName])
+#                 
+#                 if ResultType1 != ResultType2:
+#                     raise Exception('mismatch in arg types')
+#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+#                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' <= ' + Arg2 + ' ))'
+#                     
+#                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
+#                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
+#                     C2 = C2 + ResultName + ' == False )'
+#                     
+#                     C = 'Or( ' + C1 + ' , ' + C2 + ' )'
+#                     self.ConstantConditions.append(C)
+#                 else:
+#                     C =  '( ' + ResultName + ' == ( ' + Arg1 + ' <= ' + Arg2 + ' ))'
+#                     self.ConstantConditions.append(C)
+#                 
+#                 Condition = Condition + ' ' + ResultName + ' '
+                Condition = Condition + '( ' + Arg1 + ' <= ' + Arg2 + ' )'
+                ReturnType = ReturnType
                             
             elif Node[0] in ['177', '463']:
                 Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
@@ -417,7 +537,7 @@ class StateClass:
                 Condition = Condition + ' ' + ResultName + ' '
                 ReturnType = ReturnType 
             
-            elif Node[0] in ['181', '1142']:
+            elif Node[0] in ['181', '1142', '1725']:
                 Arg1, i, ResultType1 = self.MakeCondition(Parts, i+1, '')    
                 Arg2, i, ResultType2 = self.MakeCondition(Parts, i, '')
                 if ResultType1 != ResultType2:
@@ -630,7 +750,7 @@ class StateClass:
             else:
                 raise Exception('Unkown Operator '+ Node[0])
                 
-            if i < len(Parts) and Parts[i] != '' and (Condition.count('(') == Condition.count(')')): #support for multi-clause conditions
+            if i < len(Parts) and Parts[i] != '' and (Condition.count('(') == Condition.count(')')) and ReturnType == self.DataHandler.BoolType: #support for multi-clause conditions
                 Condition = 'And(' + Condition + ' , '
                 while (i < len(Parts) and Parts[i] != ''):
                     Condition, i, _ = self.MakeCondition(Parts, i, Condition)
@@ -922,15 +1042,20 @@ class StateClass:
         return Condition[:-2]
     
     def AddTypeConstraintsOnVariablesForTestCase(self, Condition):
+        TempNames = []
         for Name in self.Current_Variables:
+            TempNames.append(Name)
+        
+        for Name in TempNames:
             Type = self.getTypeFromName(Name)
             C1 = self.DataHandler.getVariableTypeConstraint(Type, Name);
+                
             if C1 != None:
+                prefix = ' ' + self.CallStackNotoString()
+                C1 = C1.replace(prefix, ' ')
                 self.ClearBeforeMakeCondition()
                 C, _, _ = self.MakeCondition(C1.split('\t'), 0, '')
-                prefix = ' ' + self.CallStackNotoString()
-                C = C.replace(prefix, ' ')
-                Condition = Condition + self.SubstituteVars(C) + ', '
+                Condition = Condition + self.SubstituteVars(C, True, True) + ', '
         
         return Condition
         
@@ -1273,7 +1398,6 @@ class StateClass:
                     if TargetCondition != '':
                         CompleteCondition = CompleteCondition + ", " + TargetCondition
                     self.Current_Choices.AddChoice('True', InternalTable)
-                return True
                     
             return False
         
