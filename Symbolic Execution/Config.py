@@ -12,7 +12,7 @@ MaximumStackDepth = 5
 CombinationsLimit = 3
 
 Log = True
-ExecutionMode = 'Update'   ## Update / Full
+ExecutionMode = 'Full'   ## Update / Full
 LogLevel = 'Progress'           # Fine / Progress
 LogLocation = 'Console'        ## File / Console
 

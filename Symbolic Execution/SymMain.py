@@ -12,7 +12,7 @@ if ExecutionMode == 'Full':
     DB.execute("Select proname, proargtypes, prorettype from pg_proc p where prolang = 11899")
     procList = DB.fetchall()
 elif ExecutionMode == 'Update':
-    SelectionQuery = "Select proname, proargtypes, prorettype from pg_proc p where proname not in (select proname from Exception_log) and prolang = 11899"
+    SelectionQuery = "Select proname, proargtypes, prorettype from pg_proc p where proname in ('saveimageass') and prolang = 11899"
     DB.execute(SelectionQuery)
     procList = DB.fetchall()
     for proc in procList:

@@ -363,12 +363,17 @@ class StateClass:
 #                 ResultName = self.TempCallStackNotoString(CallID) + 'NOTEQUALCHECKRESULT'
 #                 self.UncreatedResultVariables.append([ReturnType, ResultName])
 #                 
-#                 if ResultType1 != ResultType2:
-#                     raise Exception('mismatch in arg types')
-#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
 #                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' != ' + Arg2 + ' ))'
+
+                    C = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C = C + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ') '
+                    self.ConstantConditions.append(C)
+                    
 #                     
 #                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
@@ -394,13 +399,18 @@ class StateClass:
 #                 ResultName = self.TempCallStackNotoString(CallID) + 'GREATERCHECKRESULT'
 #                 self.UncreatedResultVariables.append([ReturnType, ResultName])
 #                 
-#                 if ResultType1 != ResultType2:
-#                     raise Exception('mismatch in arg types')
-#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
 #                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' > ' + Arg2 + ' ))'
 #                     
+
+                    C = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C = C + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ') '
+                    self.ConstantConditions.append(C)
+                    
 #                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
 #                     C2 = C2 + ResultName + ' == False )'
@@ -425,13 +435,18 @@ class StateClass:
 #                 ResultName = self.TempCallStackNotoString(CallID) + 'LESSCHECKRESULT'
 #                 self.UncreatedResultVariables.append([ReturnType, ResultName])
 #                 
-#                 if ResultType1 != ResultType2:
-#                     raise Exception('mismatch in arg types')
-#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
 #                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' < ' + Arg2 + ' ))'
 #                     
+
+                    C = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C = C + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ') '
+                    self.ConstantConditions.append(C)
+                    
 #                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
 #                     C2 = C2 + ResultName + ' == False )'
@@ -456,13 +471,18 @@ class StateClass:
 #                 ResultName = self.TempCallStackNotoString(CallID) + 'GREATEREQUALCHECKRESULT'
 #                 self.UncreatedResultVariables.append([ReturnType, ResultName])
 #                 
-#                 if ResultType1 != ResultType2:
-#                     raise Exception('mismatch in arg types')
-#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
 #                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' >= ' + Arg2 + ' ))'
 #                     
+
+                    C = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C = C + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ') '
+                    self.ConstantConditions.append(C)
+                    
 #                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
 #                     C2 = C2 + ResultName + ' == False )'
@@ -487,13 +507,18 @@ class StateClass:
 #                 ResultName = self.TempCallStackNotoString(CallID) + 'LESSEQUALCHECKRESULT'
 #                 self.UncreatedResultVariables.append([ReturnType, ResultName])
 #                 
-#                 if ResultType1 != ResultType2:
-#                     raise Exception('mismatch in arg types')
-#                 elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
+                if ResultType1 != ResultType2:
+                    raise Exception('mismatch in arg types')
+                elif not self.DataHandler.SkipConstraint(ResultType1,'NullCheck'):
 #                     C1 = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C1 = C1 + ResultName + ' == ( ' + Arg1 + ' <= ' + Arg2 + ' ))'
 #                     
+
+                    C = ' And(' + Arg1 + ' != ' + self.DataHandler.NullValue.__str__() + ' , '
+                    C = C + Arg2 + ' != ' + self.DataHandler.NullValue.__str__() + ') '
+                    self.ConstantConditions.append(C)
+                    
 #                     C2 = ' And( Or(' + Arg1 + ' == ' + self.DataHandler.NullValue.__str__() + ' , '
 #                     C2 = C2 + Arg2 + ' == ' + self.DataHandler.NullValue.__str__() + ' ) ,  '
 #                     C2 = C2 + ResultName + ' == False )'
